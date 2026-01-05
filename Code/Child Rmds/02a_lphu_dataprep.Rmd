@@ -48,13 +48,7 @@ Over the past 12 months (`r format(as.Date(year_start), format = "%d %B %Y")` to
 linelist_cases %>% 
   dplyr::filter(!is.na(event_date) & lphu_residence == lphu_name) %>% 
   #
-  f_format_epicurve_lphu(date_breaks = "2 week",
-                         start_date  = year_start,
-                         end_date    = extract_date,
-                         #
-                         y_max    = y_max,
-                         y_breaks = y_breaks,
-                         y_expand = y_expand)
+  f_format_epicurve_lphu(date_breaks = "2 week")
 ```
 
 <br>

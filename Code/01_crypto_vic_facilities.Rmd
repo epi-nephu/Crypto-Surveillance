@@ -1,7 +1,7 @@
 ---
 title: 'Cryptosporidiosis in Victoria, data as of `r format(Sys.Date(), format = "%d %B %Y")`'
 author_details: "Alana Little, NEPHU (alana.little@austin.org.au)"
-version_details: "v1.2, 14/05/2025"
+version_details: "v1.3, 05/01/2026"
 output: 
   html_document: 
     code_folding: none
@@ -9,7 +9,7 @@ output:
     toc_depth: 2
     toc_float: true
 knit: (function(input, ...) {
-  rmarkdown::render(input, output_file = paste0(Sys.Date(), " Crypto in Victoria"), output_dir = "../Reports") })
+  rmarkdown::render(input, output_file = paste0(Sys.Date(), "TEST Crypto in Victoria"), output_dir = "../Reports") })
 ---
 
 ```{css, echo = FALSE}
@@ -51,15 +51,6 @@ body {
 ```
 
 
-```{r, echo = FALSE}
-# Change log
-# v1.2: Added troubleshooting for superfluous commas in exposure site names/suburbs
-# v1.1: Addition of Victorian and LPHU text summaries and epicurves; addition of 
-#       scroll box for public facilities tables; removed interstate facility-level analyses
-# v1.0: First version
-```
-
-
 ```{r, echo = FALSE, message = FALSE}
 #
 knitr::opts_chunk$set(echo    = FALSE, 
@@ -90,7 +81,6 @@ pacman::p_load(tidyverse,
 ```{r}
 # Dates
 year_start   <- lubridate::ymd(Sys.Date() - years(1) + days(1))
-#extract_date <- lubridate::ymd(Sys.Date())
 extract_date <- lubridate::ymd(Sys.Date())
 file_date    <- format(extract_date, format = "%Y%m%d")
 
@@ -667,44 +657,12 @@ rm(results_lphu, results_followup, results_interview, results_attended)
 linelist_cases %>% 
   dplyr::filter(!is.na(event_date)) %>% 
   #
-  f_format_epicurve_lphu(date_breaks = "2 week",
-                         start_date  = year_start,
-                         end_date    = extract_date,
-                         #
-                         y_max    = NA,
-                         y_breaks = 10,
-                         y_expand = 9)
+  f_format_epicurve_lphu(date_breaks = "2 week")
 ```
 
 ***
 
 # Outbreak Summary
-
-**New and in progress cryptosporidiosis outbreaks associated with Victorian public facilities, `r format(year_start, format = "%d %B %Y")` to `r format(extract_date, format = "%d %B %Y")`**
-
-```{r}
-#
-table_outbreaks <- linelist_outbreaks %>% 
-  knitr::kable(table.attr = "style = \"color: black;\"",
-               align      = "lclll",
-               col.names  = c("PHESS ID",
-                              "Event date",
-                              "Name",
-                              "LGA",
-                              "LPHU")) %>% 
-  #
-  kableExtra::kable_styling(full_width = FALSE,
-                            position   = "left",
-                            html_font  = "Arial",
-                            font_size  = 12) %>%
-  #
-  kableExtra::row_spec(row  = 0,
-                       bold = TRUE)
-```
-
-`r if(nrow(linelist_outbreaks) == 0) paste0("There are currently no cryptosporidiosis outbreaks under investigation in Victoria.")`
-
-`r if(nrow(linelist_outbreaks) > 0) table_outbreaks`
 
 ```{r}
 # Number of cases by facility - all Vic
@@ -765,6 +723,78 @@ results_facility_lookback <- facility_cases %>%
   #
   dplyr::arrange(desc(total_cases), facility_clean)
 ```
+
+**Victorian public facilities with two or more cryptosporidiosis notifications, `r format(extract_date - 42, format = "%d %B %Y")` to `r format(extract_date, format = "%d %B %Y")`**
+
+```{r}
+#
+recent_cases <- facility_cases %>% 
+  dplyr::filter(!is.na(facility_clean)) %>% 
+  dplyr::distinct(phess_id, facility_clean, .keep_all = TRUE) %>% 
+  dplyr::arrange(facility_clean, symptom_onset) %>% 
+  #
+  dplyr::filter(symptom_onset >= extract_date - 42) %>% 
+  #
+  dplyr::group_by(lphu_facility,
+                  facility_clean,
+                  suburb_facility) %>% 
+  #
+  dplyr::summarise(n_cases = n()) %>% 
+  #
+  dplyr::ungroup() %>% 
+  #
+  dplyr::filter(n_cases >= 2)
+
+table_recent_cases <- recent_cases %>% 
+  knitr::kable(table.attr = "style = \"color: black;\"",
+               align      = "lllr",
+               col.names  = c("LPHU",
+                              "Facility",
+                              "Suburb",
+                              "Total cases")) %>% 
+  #
+  kableExtra::kable_styling(full_width = FALSE,
+                            position   = "left",
+                            html_font  = "Arial",
+                            font_size  = 12) %>%
+  #
+  kableExtra::row_spec(row  = 0,
+                       bold = TRUE)
+```
+
+`r if(nrow(recent_cases) == 0) paste0("There are no public facilities in Victoria with two or more cryptosporidiosis cases within the past 42 days.")`
+
+`r if(nrow(recent_cases) > 0) table_recent_cases`
+
+`r if(nrow(recent_cases) > 0) paste0("During the past 42 days there have been ", nrow(recent_cases), " public facilities in Victoria with two or more cryptosporidiosis cases within the past 42 days. Please review the linelist, epicurve, and swimlane plot in the relevant LPHU section of the report to assess whether these facilities represent an outbreak that requires escalation.")`
+
+<br>
+
+**New and in progress cryptosporidiosis outbreaks associated with Victorian public facilities, `r format(year_start, format = "%d %B %Y")` to `r format(extract_date, format = "%d %B %Y")`**
+
+```{r}
+#
+table_outbreaks <- linelist_outbreaks %>% 
+  knitr::kable(table.attr = "style = \"color: black;\"",
+               align      = "lclll",
+               col.names  = c("PHESS ID",
+                              "Event date",
+                              "Name",
+                              "LGA",
+                              "LPHU")) %>% 
+  #
+  kableExtra::kable_styling(full_width = FALSE,
+                            position   = "left",
+                            html_font  = "Arial",
+                            font_size  = 12) %>%
+  #
+  kableExtra::row_spec(row  = 0,
+                       bold = TRUE)
+```
+
+`r if(nrow(linelist_outbreaks) == 0) paste0("There are currently no cryptosporidiosis outbreaks under investigation in Victoria.")`
+
+`r if(nrow(linelist_outbreaks) > 0) table_outbreaks`
 
 ***
 

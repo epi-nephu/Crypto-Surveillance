@@ -3,7 +3,7 @@
 # Function for creating epi curves based on symptom onset date
 
 # Format VIC/LPHU level epi curve ----------------------------------------------
-f_format_epicurve_lphu <- function(data, start_date, end_date, date_breaks, y_max, y_breaks, y_expand) {
+f_format_epicurve_lphu <- function(data, date_breaks, y_max = NA) {
   
   figure <- ggplot(data) +
     geom_histogram(aes(x = event_date),
@@ -12,14 +12,13 @@ f_format_epicurve_lphu <- function(data, start_date, end_date, date_breaks, y_ma
                    alpha    = 0.75,
                    binwidth = 7) +
     #
-    scale_x_date(limits      = c(start_date, end_date),
-                 expand      = expansion(add = c(2, 8)),
+    scale_x_date(expand      = expansion(add = c(3, 3)),
                  date_breaks = date_breaks,
                  date_labels = "%d-%b") +
     #
     scale_y_continuous(limits = c(0, y_max),
-                       breaks = scales::breaks_width(y_breaks),
-                       expand = expansion(add = c(0, y_expand))) +
+                       breaks = scales::breaks_pretty(),
+                       expand = expansion(mult = c(0, 0.1))) +
     #
     labs(title = NULL,
          x     = "Notification date",
