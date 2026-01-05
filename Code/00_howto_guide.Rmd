@@ -1,0 +1,258 @@
+---
+title: 'NEPHU Cryptosporidium Surveillance Report - How-To Guide'
+output: 
+  html_document:
+    code_folding: none
+    toc: true
+    toc_depth: 2
+    toc_float: true
+knit: (function(input, ...) {
+  rmarkdown::render(input, output_file = "../Crypto Surveillance Report How-To Guide") })
+  
+---
+
+```{css, echo = FALSE}
+/* */ 
+.main-container {
+    max-width: 850px;
+}
+
+h1.title {
+  display: none;
+}
+
+h1 {
+  font-weight: bold;
+  font-size: 18px;
+  color: #191D43;
+}
+
+h2 {
+  font-weight: bold;
+  font-size: 16px;
+  color: #5BC788;
+}
+
+body {
+  font-size: 14px;
+}
+
+li > ul {
+  margin-bottom: 10px;
+}
+```
+
+
+```{r, echo = FALSE, message = FALSE}
+#
+knitr::opts_chunk$set(echo    = FALSE, 
+                      warning = FALSE, 
+                      message = FALSE,
+                      #
+                      fig.align  = 'center')
+
+options(knitr.kable.NA = '--')
+
+here::i_am("Code/00_howto_guide.Rmd")
+```
+
+
+```{r, out.width = '850px'}
+#
+knitr::include_graphics(here::here("Screenshots", "title_banner.PNG"))
+```
+
+<!-- # Report Production Overview -->
+
+<!-- > Insert handy flowchart here -->
+
+<!-- *** -->
+
+# Purpose of *Cryptosporidium* Reporting
+
+* The NEPHU *Cryptosporidium* Surveillance Report is a retrospective epidemiological review of cryptosporidiosis notifications for Victoria, with a focus on notifications associated with aquatic facilities.
+
+    * Summary data for case numbers and public health actions for the past 12 months.
+
+    * A line listing of all aquatic facility cryptosporidiosis outbreaks over the past 12 months.
+    
+    * Detailed analyses for each aquatic facility (line lists, epi curves, and swimlane plots).
+
+* The report is run weekly on Tuesdays by the NEPHU Epidemiology and Intelligence Team.
+
+    * Reports are uploaded to [PHU-IH.](https://dhhsvicgovau.sharepoint.com/:f:/r/sites/PHUIH/Streams/Communicable%20Disease%20Documents/1.%20Important%20Resources/LPHU%20Developed%20CD%20Resources/NEPHU%20-%20Cryptosporidium%20Surveillance?csf=1&web=1&e=Jyd3tY)
+
+    * Reports can be sent via email upon request.
+
+***
+
+# A Step-by-Step Guide to Running the NEPHU *Cryptosporidium* Surveillance Report
+
+## Part 1: Data Prep
+
+Navigate to the Crypto Surveillance folder on the shared drive:
+
+```{r, out.width = '800px'}
+#
+knitr::include_graphics(here::here("Screenshots", "folder_shareddrive.PNG"))
+```
+
+<br/>
+
+Download the required PHESS extracts and save them in the Data subfolder. YYYYMMDD is the current date.
+
+```{r, out.width = '800px'}
+#
+knitr::include_graphics(here::here("Screenshots", "folder_data.PNG"))
+```
+
+<br/>
+
+* Victorian crypto notifications:
+
+    * Maven Reporting > NEPHU Reports > Victorian Crypto Cases
+    * Condition: Cryptosporidiosis
+    * Local public health unit: Select all
+    * Most recent event classification: Confirmed
+    * Report period: 12 months
+    * Output type: Excel
+    * Rename file to VictorianCryptoCases_YYYYMMDD
+
+```{r, out.width = '400px'}
+#
+knitr::include_graphics(here::here("Screenshots", "phess_cases.PNG"))
+```
+
+<br/>
+
+* Victorian crypto outbreaks:
+
+    * Maven Reporting > NEPHU Reports > NEPHU Outbreak Linelist
+    * Report period: 12 months
+    * Output type: Excel
+    * Rename file to NEPHUOutbreakLinelist_YYYYMMDD
+
+```{r, out.width = '400px'}
+#
+knitr::include_graphics(here::here("Screenshots", "phess_outbreaks.PNG"))
+```
+
+<br/>
+
+In addition to the PHESS extracts, the report uses two manual datasets.
+
+* Pools reference list:
+
+   * This is a manual list maintained by the NEPHU Epidemiology and Intelligence Team
+   * Contains information about the location of each aquatic facility
+   * If known, the dates of the most recent escalation and most recent hyperchlorination can be recorded
+   * You will be updating the list if new pools are identified when you run the report
+
+```{r, out.width = '800px'}
+#
+knitr::include_graphics(here::here("Screenshots", "data_pools.PNG"))
+```
+
+<br/>
+   
+* Dates of pool attendance:
+
+   * This is a manual list maintained by the NEPHU Epidemiology and Intelligence Team
+   * These data are used to show the dates of pool attendance in the facility-level linelists and swimlane plots
+   * You will be updating the list if new NEPHU cases are identified when you run the report
+
+```{r, out.width = '800px'}
+#
+knitr::include_graphics(here::here("Screenshots", "data_dates.PNG"))
+```
+
+<br/>
+
+## Part 2: Running the Report
+
+Open the R Project file.
+
+```{r, out.width = '800px'}
+#
+knitr::include_graphics(here::here("Screenshots", "folder_rproject.PNG"))
+```
+
+<br/>
+
+Open 01_crypto_vic_facilities.Rmd
+
+```{r, out.width = '600px'}
+#
+knitr::include_graphics(here::here("Screenshots", "code_openrmd.PNG"))
+```
+
+<br/>
+
+If required, update the extract_date parameter in the code (e.g. extract_date <- lubridate::ymd("2024-04-30"). The default is to use the current calendar date.
+
+```{r, out.width = '600px'}
+#
+knitr::include_graphics(here::here("Screenshots", "code_extractdate.PNG"))
+```
+
+<br/>
+
+Knit the document. Depending on your R installation you may need to select 'html' in a dropdown menu that appears when you click on the Knit button. The code should take about two minutes to run.
+
+```{r, out.width = '600px'}
+#
+knitr::include_graphics(here::here("Screenshots", "code_knit.PNG"))
+```
+
+<br/>
+
+If everything has worked as intended you should now have a html file in the Reports folder titled: Crypto in Victorian Aquatic Facilities YYYY-MM-DD (YYYY-MM-DD is the current calendar date).
+
+```{r, out.width = '800px'}
+#
+knitr::include_graphics(here::here("Screenshots", "folder_reports.PNG"))
+```
+
+<br/>
+
+* If there are new pools identified, a list will print at the top of the report. Review the pools on this list and add them to the Reference_Pools.xlsx if required. 
+
+```{r, out.width = '600px'}
+#
+knitr::include_graphics(here::here("Screenshots", "report_newpools.PNG"))
+```
+
+<br/>
+
+* Check whether they are already in Reference_Pools but with a different spelling, abbreviation, etc. You can add tidy up messy pool name data in the code - remember that R is case-sensitive and names have to be identical to match across datasets (NRMA is not the same as Nrma).
+
+```{r, out.width = '600px'}
+#
+knitr::include_graphics(here::here("Screenshots", "code_messynames.PNG"))
+```
+
+<br/>
+
+* If there are new NEPHU cases identified, a list will print at the top of the report. Review these cases and add them to the DatesAttendingPools_YYYYMMDD.xlsx if required. 
+
+```{r, out.width = '600px'}
+#
+knitr::include_graphics(here::here("Screenshots", "report_newexposures.PNG"))
+```
+
+<br/>
+
+Knit the document again. If all goes well, the report should look like this:
+
+```{r, out.width = '800px'}
+#
+knitr::include_graphics(here::here("Screenshots", "report_complete.PNG"))
+```
+
+<br/>
+
+## Part 3: Reviewing the Report
+
+> Work in progress!
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

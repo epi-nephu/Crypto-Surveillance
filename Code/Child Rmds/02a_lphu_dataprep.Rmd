@@ -1,0 +1,168 @@
+
+```{r}
+# Total number of cases for LPHU in past seven days
+results_lphuseven <- linelist_cases %>% 
+  dplyr::filter(lphu_residence == lphu_name) %>%
+  dplyr::filter(event_date >= extract_date - 6) %>% 
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>% 
+  nrow()
+
+# Total number of cases for LPHU
+results_lphucases <- linelist_cases %>%
+  dplyr::filter(lphu_residence == lphu_name) %>%
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>%
+  nrow()
+
+# Total number of cases assigned for follow-up
+results_lphufollowup <- linelist_cases %>%
+  dplyr::filter(lphu_residence == lphu_name) %>%
+  dplyr::filter(stringr::str_detect(follow_up_required, "Yes")) %>%
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>%
+  nrow()
+
+# Number of cases interviewed
+results_lphuinterview <- linelist_cases %>%
+  dplyr::filter(lphu_residence == lphu_name) %>%
+  dplyr::filter(!is.na(interview_date)) %>%
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>%
+  nrow()
+
+# Number of interviewed cases who attended a facility
+results_lphupool <- linelist_cases %>%
+  dplyr::filter(lphu_residence == lphu_name) %>%
+  dplyr::filter(!is.na(facility_clean)) %>%
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>%
+  nrow()
+```
+
+`r if(results_lphuseven == 1){paste0("During the past seven days (", format(as.Date(extract_date - 6), format = "%d %B %Y"), " to ", format(as.Date(extract_date), format = "%d %B %Y"), ") there was one cryptosporidiosis notification in ", lphu_name, " LPHU.")}`
+
+`r if(results_lphuseven != 1){paste0("During the past seven days (", format(as.Date(extract_date - 6), format = "%d %B %Y"), " to ", format(as.Date(extract_date), format = "%d %B %Y"), ") there were ", format(results_lphuseven, big.mark = ","), " cryptosporidiosis notifications in ", lphu_name, " LPHU.")}`
+
+Over the past 12 months (`r format(as.Date(year_start), format = "%d %B %Y")` to `r format(as.Date(extract_date), format = "%d %B %Y")`) there have been `r format(results_lphucases, big.mark = ",")` cryptosporidiosis notifications in `r lphu_name` LPHU. `r format(results_lphufollowup, big.mark = ",")` notifications were signed out for follow-up. `r format(results_lphupool, big.mark = ",")` of the `r format(results_lphuinterview, big.mark = ",")` interviewed cases (`r sprintf("%.0f%%", (results_lphupool / results_lphuinterview * 100))`) during this time period reported attending at least one public facility (including aquatic facilities and petting zoos) during their acquisition and/or infectious period.
+
+### `r paste0("Weekly confirmed cryptosporidiosis cases notified between ", format(year_start, format = "%d %B %Y"), " and ", format(extract_date, format = "%d %B %Y"), ", ", lphu_name, " LPHU, by notification date")`
+
+```{r, fig.height = 4, fig.width = 8}
+#
+linelist_cases %>% 
+  dplyr::filter(!is.na(event_date) & lphu_residence == lphu_name) %>% 
+  #
+  f_format_epicurve_lphu(date_breaks = "2 week",
+                         start_date  = year_start,
+                         end_date    = extract_date,
+                         #
+                         y_max    = y_max,
+                         y_breaks = y_breaks,
+                         y_expand = y_expand)
+```
+
+<br>
+
+### `r paste0("Number of cryptosporidiosis cases attending ", lphu_name, " LPHU public facilities, ", format(year_start, format = "%d %B %Y"), " to ", format(extract_date, format = "%d %B %Y"))`
+
+```{r}
+# Number of cases by facility
+results_facility_vic %>% 
+  dplyr::filter(lphu_facility == lphu_name) %>% 
+  #
+  dplyr::select(-lphu_facility,
+                -closure_date,
+                -onset_first,
+                -onset_last) %>% 
+  #
+  dplyr::arrange(desc(escalation_date),
+                 desc(total_cases),
+                 facility_clean) %>% 
+  #
+  knitr::kable(table.attr = "style = \"color: black;\"",
+               align      = "llcccccc",
+               col.names  = c("Facility",
+                              "Suburb",
+                              "Total cases",
+                              #
+                              "PHESS ID",
+                              "Escalation date",
+                              "Hyperchlorination",
+                              "Number of cases",
+                              "Escalation status")) %>%
+  #
+  kableExtra::kable_styling(full_width = FALSE,
+                            position   = "left",
+                            html_font  = "Arial",
+                            font_size  = 12) %>%
+  #
+  kableExtra::row_spec(row  = 0,
+                       bold = TRUE) %>%
+  #
+  kableExtra::add_header_above(c(" " = 3,
+                                 "Most recent escalation" = 5)) %>% 
+  #
+  kableExtra::scroll_box(height = "400px")
+```
+
+***
+
+```{r}
+# Facilities to include
+facilities <- results_facility_lookback %>% 
+  dplyr::arrange(facility_clean) %>% 
+  dplyr::filter(lphu_facility == lphu_name) %>% 
+  pull(facility_clean)
+
+# Set heights for swimlane plots
+swimlane_heights <- results_facility_lookback %>% 
+  dplyr::arrange(facility_clean) %>% 
+  dplyr::filter(lphu_facility == lphu_name) %>%
+  dplyr::mutate(height = (total_cases / 2) + 2) %>% 
+  pull(height)
+
+# Most recent escalation/outbreak dates
+escalation_dates <- results_facility_lookback %>% 
+  dplyr::arrange(facility_clean) %>% 
+  dplyr::filter(lphu_facility == lphu_name) %>% 
+  pull(escalation_date)
+
+# Number of cases escalated
+escalation_cases <- results_facility_lookback %>% 
+  dplyr::arrange(facility_clean) %>% 
+  dplyr::filter(lphu_facility == lphu_name) %>% 
+  pull(escalation_cases)
+
+# PHESS ID for escalations/outbreaks
+escalation_phess <- results_facility_lookback %>% 
+  dplyr::arrange(facility_clean) %>% 
+  dplyr::filter(lphu_facility == lphu_name) %>% 
+  pull(escalation_phess)
+
+# Symptom onset for first case
+symptom_first <- results_facility_lookback %>% 
+  dplyr::arrange(facility_clean) %>% 
+  dplyr::filter(lphu_facility == lphu_name) %>% 
+  pull(onset_first)
+
+# Symptom onset for last case
+symptom_last <- results_facility_lookback %>% 
+  dplyr::arrange(facility_clean) %>% 
+  dplyr::filter(lphu_facility == lphu_name) %>% 
+  pull(onset_last)
+
+# Most recent hyperchlorination dates
+hyperchl_dates <- results_facility_lookback %>% 
+  arrange(facility_clean) %>% 
+  dplyr::filter(lphu_facility == lphu_name) %>% 
+  pull(hyperchl_date)
+
+# Closure dates for most recent escalation/outbreak
+closure_dates <- results_facility_lookback %>% 
+  arrange(facility_clean) %>% 
+  dplyr::filter(lphu_facility == lphu_name) %>% 
+  pull(closure_date)
+```
+
+
+```{r}
+# Placeholder list to store tables and charts created by loop
+results <- list()
+```
+

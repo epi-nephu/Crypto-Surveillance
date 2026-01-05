@@ -1,0 +1,1034 @@
+---
+title: 'Cryptosporidiosis in Victoria, data as of `r format(Sys.Date(), format = "%d %B %Y")`'
+author_details: "Alana Little, NEPHU (alana.little@austin.org.au)"
+version_details: "v1.2, 14/05/2025"
+output: 
+  html_document: 
+    code_folding: none
+    toc: true
+    toc_depth: 2
+    toc_float: true
+knit: (function(input, ...) {
+  rmarkdown::render(input, output_file = paste0(Sys.Date(), " Crypto in Victoria"), output_dir = "../Reports") })
+---
+
+```{css, echo = FALSE}
+/* */ 
+.main-container {
+    max-width: 1000px;
+}
+
+.tocify .tocify-header {
+    width: 350px;
+}
+
+h1.title {
+  font-weight: bold;
+  font-size: 20px;
+  color: #191d43;
+}
+
+h1 {
+  font-weight: bold;
+  font-size: 20px;
+  color: #5bc788;
+}
+
+h2 {
+  font-weight: bold;
+  font-size: 18px;
+  color: #5bc788;
+}
+
+h3 {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+body {
+  font-size: 14px;
+}
+```
+
+
+```{r, echo = FALSE}
+# Change log
+# v1.2: Added troubleshooting for superfluous commas in exposure site names/suburbs
+# v1.1: Addition of Victorian and LPHU text summaries and epicurves; addition of 
+#       scroll box for public facilities tables; removed interstate facility-level analyses
+# v1.0: First version
+```
+
+
+```{r, echo = FALSE, message = FALSE}
+#
+knitr::opts_chunk$set(echo    = FALSE, 
+                      warning = FALSE, 
+                      message = FALSE)
+
+options(knitr.kable.NA = '--')
+
+here::i_am("Code/01_crypto_vic_facilities.Rmd")
+```
+
+
+```{r}
+# Install the pacman package if you don't already have it
+if (!require("pacman")) install.packages("pacman")
+
+pacman::p_load(tidyverse,
+               janitor,
+               lubridate,
+               here,
+               rmarkdown,
+               knitr,
+               kableExtra,
+               ggnewscale)
+```
+
+
+```{r}
+# Dates
+year_start   <- lubridate::ymd(Sys.Date() - years(1) + days(1))
+#extract_date <- lubridate::ymd(Sys.Date())
+extract_date <- lubridate::ymd(Sys.Date())
+file_date    <- format(extract_date, format = "%Y%m%d")
+
+# 3-month lookback period for facility-level analyses
+lookback_start <- lubridate::ymd(extract_date - months(3))
+
+# Start and end dates for epicurves
+epicurve_start <- lookback_start - 14
+epicurve_end   <- extract_date + 3
+
+# Start and end dates for swimlane plots
+swimlane_start <- lookback_start - 14
+swimlane_end   <- extract_date + 17
+```
+
+
+```{r}
+# Functions
+source(paste0(here::here(), "/Code", "/Functions", "/f_create_epicurve.R"))
+source(paste0(here::here(), "/Code", "/Functions", "/f_create_swimlane.R"))
+```
+
+
+```{r}
+# Read in case linelist
+linelist_raw <- readxl::read_xlsx(paste0(here::here(), "/Data/VictorianCryptoCases_", file_date, ".xlsx"),
+                                  sheet     = 1,
+                                  guess_max = min(100000, Inf)) %>%
+  #
+  janitor::clean_names() %>%
+  #
+  dplyr::select(phess_id,
+                event_date,
+                age_years            = age_in_years_from_event_date,
+                sex,
+                suburb_residence     = suburb_town,
+                symptom_onset        = calculated_onset_date,
+                symptom_end_amount   = duration_of_symptom_s,
+                symptom_end_unit     = unit,
+                lga_residence        = lga,
+                lphu_residence       = local_public_health_unit,
+                follow_up_required   = follow_up_indicated_by_epi,
+                interview_date_phess = date,
+                completed_date       = date_completed,
+                #
+                category,
+                name,
+                city)
+
+# Data wrangling
+linelist_cases <- linelist_raw %>% 
+  dplyr::mutate(suburb_residence = stringr::str_to_title(suburb_residence),
+                #
+                event_date           = lubridate::ymd(event_date),
+                symptom_onset        = lubridate::ymd(symptom_onset),
+                interview_date_phess = lubridate::ymd(interview_date_phess),
+                completed_date       = lubridate::ymd(completed_date),
+                #
+                symptom_days = dplyr::case_when(
+                  symptom_end_unit == "Days"  ~ symptom_end_amount * 1,
+                  symptom_end_unit == "Weeks" ~ symptom_end_amount * 7,
+                  TRUE                        ~ NA_integer_),
+                #
+                symptom_end = symptom_onset + symptom_days)
+```
+
+
+```{r}
+# Wrangle exposure sites information
+linelist_exposures <- linelist_cases %>% 
+  dplyr::select(phess_id,
+                category,
+                name,
+                suburb = city) %>% 
+  #
+  dplyr::filter(!is.na(name),
+                name != ",") %>%
+  #
+  # Are you getting a tidyr::separate_longer_delim() error? If so, uncomment lines 177-181
+  # and check for rows where there is an unequal number of categories, facility names, and 
+  # suburbs. This is caused by a superfluous comma - usually in the exposure site name. Go
+  # into the PHESS record and remove any commas from the exposure type, exposure name, and 
+  # exposure suburb fields. You can then comment out lines 177-181, re-extract the PHESS 
+  # data, and rerun the report.
+
+#dplyr::mutate(n_category = stringr::str_count(category, ",") + 1,
+#              n_name     = stringr::str_count(name, ",") + 1,
+ #            n_suburb   = stringr::str_count(suburb, ",") + 1) %>%
+# 
+# dplyr::filter(n_category != n_name | n_name != n_suburb | n_suburb != n_category)
+  #
+  tidyr::separate_longer_delim(c(category, name, suburb), delim = ",") %>% 
+  #
+  dplyr::filter(!is.na(name),
+                name != "") %>% 
+  #
+  dplyr::mutate(facility_clean = stringr::str_split(name, "\\(", simplify = TRUE)[,1],
+                facility_clean = stringr::str_squish(facility_clean),
+                facility_clean = stringr::str_to_title(facility_clean)) %>% 
+  #
+  dplyr::arrange(facility_clean) %>%
+  #
+  dplyr::filter(category != "Person") %>% 
+  #
+  dplyr::mutate(
+    facility_clean = dplyr::case_when(
+      facility_clean == "Aqua Schools Sunbury" ~ "AQUA Schools Sunbury",
+      facility_clean == "Aquapulse Hoppers Crossing" ~ "AquaPulse Hoppers Crossing",
+      facility_clean == "Bayfit Leisure Centre" ~ "BayFit Leisure Centre",
+      facility_clean == "Big4 Yarra Valley Park Lane Holiday Park" ~ "BIG4 Yarra Valley Park Lane",
+      facility_clean == "Bluefit Swimming - Mill Park" ~ "BlueFit Swimming",
+      facility_clean == "Brunswickcity Baths" ~ "Brunswick City Baths",
+      facility_clean == "Casey Race Ccc" ~ "Casey Recreation & Aquatic Centre",
+      facility_clean == "Discovery Parks - Echuca" ~ "Discovery Park - Echuca",
+      facility_clean == "Discovery Park Maidens Inn" ~ "Discovery Park - Maidens Inn",
+      facility_clean == "Dreamworld - Gold Coast Theme Park" ~ "Dreamworld Gold Coast",
+      facility_clean == "Keilor East Leisure Centre" ~ "East Keilor Leisure Centre",
+      facility_clean == "Knox Leisureworks Ymca" ~ "Knox Leisureworks YMCA",
+      facility_clean == "Hepburn Springs Bathouse" ~ "Hepburn Springs Bathhouse",
+      facility_clean == "John Sugden Swim School Kilsyth South" ~ "John William Sugden Swim School - Kilsyth South",
+      facility_clean == "Jubilee Park - 37 Greenwood Avenue Ringwood" ~ "Jubilee Park",
+      facility_clean == "Jump Swim School Berwick" ~ "Jump! Swim Schools Berwick",
+      facility_clean == "Jump Swim School Flemington" ~ "Jump! Swim Schools Flemington",
+      facility_clean == "Jump! Swim School Lilydale" ~ "Jump! Swim Schools Lilydale",
+      facility_clean == "Kic Swim School" ~ "KIC Swim School",
+      facility_clean == "Kiddieswim Australia Pty Ltd" ~ "Kiddieswim Australia",
+      facility_clean == "Kings Swim Chirnside Park" ~ "Kingswim Chirnside Park",
+      facility_clean == "Nrma Bairnsdale Riverside Holiday Park" ~ "NRMA Bairnsdale Riverside Holiday Park",
+      facility_clean == "Nrma Eastern Beach Holiday Park" ~ "NRMA Eastern Beach Holiday Park",
+      facility_clean == "Nrma Echuca Holiday Park" ~ "NRMA Echuca Holiday Park",
+      facility_clean == "Paul Saddler Swimland" ~ "Paul Sadler Swimland Essendon",
+      facility_clean == "Racv Cobram Resort" ~ "RACV Cobram Resort",
+      facility_clean == "Racv Noosa Resort" ~ "RACV Noosa Resort",
+      facility_clean == "Royal Melbourne" ~ "Royal Melbourne Hospital",
+      facility_clean == "Sense Of Self" ~ "Sense of Self Day Spa",
+      facility_clean == "Urbnsurf Melbourne" ~ "URBNSURF Melbourne",
+      facility_clean == "Watermarc Banyule" ~ "WaterMarc Banyule",
+      facility_clean == "Wet'n'wild Gold Coast" ~ "Wet'n'Wild Gold Coast",
+      facility_clean == "Toby Haenen Swim Centre Chelsea Heights" ~ "Toby Haenen Swim Centre",
+      facility_clean == "Vermont Views Racf Vermont South" ~ "Vermont Views RACF Vermont South",
+      facility_clean == "Wodonga Abattoir 54 Kelly St Wodonga Vic 3690" ~ "Wodonga Abattoir",
+
+      # Remove private residences
+      facility_clean == "1333 Murray River Rd Talgarno" ~ NA_character_,
+      facility_clean == "283 Spring St Melbourne" ~ NA_character_,
+      facility_clean == "55 Margaret Court Dr" ~ NA_character_,
+      facility_clean == "7 Sinnett Court West Wodonga Vic 3690" ~ NA_character_,
+      facility_clean == "95/33 La Trobe St Melbourne" ~ NA_character_,
+      facility_clean == "Body Corporate Ps 428541d" ~ NA_character_,
+      facility_clean == "Jayden And Tayla's Residence" ~ NA_character_,
+      facility_clean == "Taran Gisbornes Residence" ~ NA_character_,
+      facility_clean == "Private Residence - 15 Gerald St Ferntree Gully" ~ NA_character_,
+      facility_clean == "Private Residence - 21 Henbury Street Huntly" ~ NA_character_,
+      facility_clean == "Private Residence: 5 Collins St Red Hill 3937" ~ NA_character_,
+
+      # Remove natural water sources
+      facility_clean == "Alpine National Park Tawonga" ~ NA_character_,
+      facility_clean == "Bali-Indonesia" ~ NA_character_,
+      facility_clean == "Bangkok Thailand" ~ NA_character_,
+      facility_clean == "Benalla Rural City Council" ~ NA_character_,
+      facility_clean == "Broken River Benalla" ~ NA_character_,
+      facility_clean == "Fleming Park Brunswick" ~ NA_character_,
+      facility_clean == "Lake Eildon" ~ NA_character_,
+      facility_clean == "Mansfield Lake - Lake Eildon" ~ NA_character_,
+      facility_clean == "Pambula Beach" ~ NA_character_,
+      facility_clean == "Suvarnabhumi Airport Bangkok Thailand" ~ NA_character_,
+      facility_clean == "Suvarnabhumi Airport" ~ NA_character_,
+      facility_clean == "Yarrawonga Shire Of Moira Vic" ~ NA_character_,
+      #
+      TRUE ~ as.character(facility_clean))) %>% 
+  #
+  dplyr::arrange(facility_clean) %>%
+  #
+  dplyr::select(-name)
+```
+
+
+```{r}
+# Read in facility reference list
+reference_facility <- readxl::read_xlsx(paste0(here::here(), "/Data/Reference_Facility.xlsx"),
+                                        sheet     = 1,
+                                        guess_max = min(100000, Inf)) %>% 
+  #
+  janitor::clean_names() %>% 
+  #
+  dplyr::select(facility,
+                suburb_facility  = suburb,
+                lga_facility     = lga,
+                lphu_facility    = lphu,
+                escalation_status,
+                escalation_phess = escalation_phess_id,
+                escalation_date  = most_recent_escalation,
+                escalation_cases = escalation_total_cases,
+                onset_first      = first_case_symptom_onset,
+                onset_last       = last_case_symptom_onset,
+                hyperchl_date    = most_recent_hyperchlorination,
+                closure_date     = most_recent_escalation_closed)
+
+# Join exposure sites to case data
+linelist_cases <- linelist_cases %>% 
+  dplyr::left_join(linelist_exposures, by = "phess_id") %>%
+  #
+  dplyr::left_join(reference_facility, by = c("facility_clean" = "facility")) %>% 
+  #
+  dplyr::distinct(phess_id, facility_clean, .keep_all = TRUE)
+
+# Check for new facilities to add to reference list
+reference_facilities_new <- linelist_cases %>% 
+  dplyr::filter(!is.na(facility_clean) & is.na(lga_facility)) %>% 
+  #
+  dplyr::arrange(facility_clean, phess_id) %>% 
+  #
+  dplyr::distinct(facility_clean, phess_id, .keep_all = TRUE) %>% 
+  #
+  dplyr::select(phess_id,
+                facility_clean,
+                suburb)
+
+show_table <- dplyr::case_when(
+  nrow(reference_facilities_new) > 0 ~ TRUE,
+  TRUE ~ FALSE)
+
+if(show_table) {
+  reference_facilities_new %>% 
+    knitr::kable(table.attr = "style = \"color: black;\"",
+                 align      = "lll",
+                 col.names  = c("PHESS ID",
+                                "Facility",
+                                "Suburb")) %>% 
+    #
+    kableExtra::kable_styling(full_width = FALSE,
+                              position   = "left",
+                              html_font  = "Arial",
+                              font_size  = 12) %>%
+    #
+    kableExtra::row_spec(row  = 0,
+                         bold = TRUE) %>% 
+    #
+    kableExtra::add_header_above(c("New facilities to be added to Reference_Facility.xlsx" = 3))
+}
+
+# If new facilities are identified, add them to Reference_Facility.xlsx and rerun the report
+
+rm(linelist_exposures, reference_facility, reference_facilities_new)
+```
+
+
+```{r}
+# Read in exposure dates data
+linelist_dates <- readxl::read_xlsx(paste0(here::here(), "/Data/DatesAttendingFacility_", file_date, ".xlsx"),
+                                    sheet     = 1,
+                                    guess_max = min(100000, Inf)) %>% 
+  #
+  janitor::clean_names() %>% 
+  #
+  dplyr::mutate(phess_id = as.character(phess_id),
+                #
+                interview_date_manual = janitor::convert_to_date(interview_date,
+                                                                 character_fun = lubridate::dmy),
+                #
+                date_attended = janitor::convert_to_date(date_attended,
+                                                         character_fun = lubridate::dmy)) %>% 
+  #
+  dplyr::select(phess_id,
+                facility,
+                date_attended,
+                interview_date_manual)
+
+# Join exposure sites data to case data
+linelist_cases <- linelist_cases %>% 
+  dplyr::left_join(linelist_dates, by = c("phess_id", "facility_clean" = "facility")) 
+
+# Check for NEPHU cases with missing exposure dates data
+linelist_dates_new <- linelist_cases %>% 
+  dplyr::filter(lphu_facility == "North Eastern") %>% 
+  dplyr::filter(is.na(interview_date_manual)) %>% 
+  #
+  dplyr::arrange(phess_id, facility_clean) %>% 
+  #
+  dplyr::distinct(phess_id, facility_clean, .keep_all = TRUE) %>% 
+  #
+  dplyr::select(phess_id,
+                symptom_onset,
+                facility_clean)
+
+show_table <- dplyr::case_when(
+  nrow(linelist_dates_new) > 0 ~ TRUE,
+  TRUE ~ FALSE)
+
+if(show_table) {
+  linelist_dates_new %>% 
+    knitr::kable(table.attr = "style = \"color: black;\"",
+                 align      = "lcl",
+                 col.names  = c("PHESS ID",
+                                "Symptom onset",
+                                "Facility")) %>% 
+    #
+    kableExtra::kable_styling(full_width = FALSE,
+                              position   = "left",
+                              html_font  = "Arial",
+                              font_size  = 12) %>%
+    #
+    kableExtra::row_spec(row  = 0,
+                         bold = TRUE) %>% 
+    #
+    kableExtra::add_header_above(c("New exposures to be added to DatesAttendingFacility.xlsx" = 3))
+}
+
+# If new exposures are identified, add them to DatesAttendingFacility.xlsx and rerun the report
+
+# Data wrangling
+linelist_cases <- linelist_cases %>% 
+  dplyr::filter(event_date >= year_start) %>% 
+  #
+  dplyr::mutate(
+    symptom_end = dplyr::case_when(
+      !is.na(symptom_end) ~ symptom_end,
+      #
+      !is.na(interview_date_manual) ~ interview_date_manual,
+      !is.na(interview_date_phess)  ~ interview_date_phess,
+      #
+      !is.na(completed_date) ~ completed_date,
+      TRUE                   ~ NA_Date_),
+    #
+    interview_date = dplyr::case_when(
+      !is.na(interview_date_phess)  ~ interview_date_phess,
+      !is.na(interview_date_manual) ~ interview_date_manual,
+      !is.na(completed_date)        ~ completed_date,
+      TRUE                          ~ NA_Date_),
+    #
+    escalation_date = lubridate::ymd(escalation_date),
+    onset_first     = lubridate::ymd(onset_first),
+    onset_last      = lubridate::ymd(onset_last),
+    hyperchl_date   = lubridate::ymd(hyperchl_date),
+    closure_date    = lubridate::ymd(closure_date)) %>% 
+  #
+  dplyr::select(phess_id,
+                event_date,
+                age_years,
+                sex,
+                suburb_residence,
+                lga_residence,
+                lphu_residence,
+                symptom_onset,
+                symptom_end,
+                follow_up_required,
+                interview_date,
+                facility_clean,
+                suburb_facility,
+                lga_facility,
+                lphu_facility,
+                date_attended,
+                escalation_status,
+                escalation_phess,
+                escalation_date,
+                escalation_cases,
+                onset_first,
+                onset_last,
+                hyperchl_date,
+                closure_date)
+
+rm(linelist_dates, linelist_raw, linelist_dates_new)
+```
+
+
+```{r}
+# Create wide version of dates data (prior to symptom onset)
+dates_attended_prior <- linelist_cases %>% 
+  dplyr::filter(date_attended <= symptom_onset) %>% 
+  #
+  dplyr::select(phess_id, facility_clean, date_attended) %>%
+  #
+  dplyr::arrange(phess_id, facility_clean, date_attended) %>%
+  #
+  dplyr::group_by(phess_id, facility_clean) %>%
+  #
+  dplyr::mutate(visit_number  = row_number(),
+                date_attended = format(date_attended, format = "%d/%m/%Y")) %>%
+  #
+  dplyr::ungroup() %>%
+  #
+  tidyr::pivot_wider(id_cols      = everything(),
+                     names_from   = visit_number,
+                     names_prefix = "visit_",
+                     values_from  = date_attended)
+
+dates_attended_prior <- dates_attended_prior %>% 
+  tidyr::unite("dates_attended_prior", visit_1:ncol(dates_attended_prior), sep = ", ", na.rm = TRUE)
+
+# Create wide version of dates data (after symptom onset)
+dates_attended_after <- linelist_cases %>% 
+  dplyr::filter(date_attended > symptom_onset) %>% 
+  #
+  dplyr::select(phess_id, facility_clean, date_attended) %>%
+  #
+  dplyr::arrange(phess_id, facility_clean, date_attended) %>%
+  #
+  dplyr::group_by(phess_id, facility_clean) %>%
+  #
+  dplyr::mutate(visit_number  = row_number(),
+                date_attended = format(date_attended, format = "%d/%m/%Y")) %>%
+  #
+  dplyr::ungroup() %>%
+  #
+  tidyr::pivot_wider(id_cols      = everything(),
+                     names_from   = visit_number,
+                     names_prefix = "visit_",
+                     values_from  = date_attended)
+
+dates_attended_after <- dates_attended_after %>% 
+  tidyr::unite("dates_attended_after", visit_1:ncol(dates_attended_after), sep = ", ", na.rm = TRUE)
+```
+
+
+```{r}
+# Read in outbreaks data
+linelist_outbreaks <- readxl::read_xlsx(paste0(here::here(), "/Data/NEPHUOutbreakLinelist_", file_date, ".xlsx"),
+                                        sheet     = 1,
+                                        guess_max = min(100000, Inf)) %>% 
+  #
+  janitor::clean_names() %>% 
+  #
+  dplyr::filter(condition == "Cryptosporidiosis") %>% 
+  #
+  dplyr::filter(stringr::str_detect(event_name, "Crypto", negate = TRUE)) %>%
+  #
+  # Remove outbreaks that don't meet outbreak definition
+  dplyr::filter(!event_name %in% c("202311 Benalla Aquatic Centre Exposure",
+                                   "202402 Sunraysia Resort pool Mildura",
+                                   "202403 Paul Sadler Swimland Ringwood",
+                                   "202402 Diamond Creek Outdoor Pool (Aquatic Facility)",
+                                   "202407 Greater Geelong cluster")) %>%
+  # Restrict to outbreaks that are new or in progress
+  dplyr::filter(investigation_status %in% c("New", "In progress")) %>% 
+  #
+  dplyr::select(phess_id,
+                event_date,
+                event_name,
+                lga  = local_government_area,
+                lphu = local_public_health_unit)
+
+# Data wrangling
+linelist_outbreaks <- linelist_outbreaks %>% 
+  dplyr::mutate(event_date = lubridate::ymd(event_date),
+                #
+                lphu = dplyr::case_when(
+                  lphu == "44B2"  ~ "North Eastern",
+                  lphu == "77J9"  ~ "South Eastern",
+                  lphu == "356J1" ~ "Western",
+                  TRUE            ~ lphu)) %>% 
+  #
+  dplyr::arrange(desc(event_date))
+```
+
+# Case Summary
+
+```{r}
+# Total number of cases for Vic in past seven days
+results_vicseven <- linelist_cases %>% 
+  dplyr::filter(event_date >= extract_date - 6) %>% 
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>% 
+  nrow()
+
+# Total number of cases for Vic
+results_viccases <- linelist_cases %>% 
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>% 
+  nrow()
+
+# Total number of cases assigned for follow-up
+results_vicfollowup <- linelist_cases %>% 
+  dplyr::filter(stringr::str_detect(follow_up_required, "Yes")) %>%
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>% 
+  nrow()
+
+# Number of cases interviewed
+results_vicinterview <- linelist_cases %>% 
+  dplyr::filter(!is.na(interview_date)) %>% 
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>% 
+  nrow()
+
+# Number of interviewed cases who attended a public facility
+results_vicpool <- linelist_cases %>% 
+  dplyr::filter(!is.na(facility_clean)) %>% 
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>% 
+  nrow()
+```
+
+During the past seven days (`r format(as.Date(extract_date - 6), format = "%d %B %Y")` to `r format(as.Date(extract_date), format = "%d %B %Y")`) there were `r format(results_vicseven, big.mark = ",")` cryptosporidiosis notifications in Victoria.
+
+Over the past 12 months (`r format(as.Date(year_start), format = "%d %B %Y")` to `r format(as.Date(extract_date), format = "%d %B %Y")`) there have been `r format(results_viccases, big.mark = ",")` cryptosporidiosis notifications in Victoria. `r format(results_vicfollowup, big.mark = ",")` notifications were signed out to LPHUs for follow-up. `r format(results_vicpool, big.mark = ",")` of the `r format(results_vicinterview, big.mark = ",")` interviewed cases (`r sprintf("%.0f%%", (results_vicpool / results_vicinterview * 100))`) during this time period reported attending at least one public facility (including aquatic facilities and petting zoos) during their acquisition and/or infectious period.
+
+**Total number of cryptosporidiosis cases, cases assigned for follow-up, cases interviewed, and cases attending a public facility, by LPHU, `r format(year_start, format = "%d %B %Y")` to `r format(extract_date, format = "%d %B %Y")`**
+
+```{r}
+#
+results_lphu <- linelist_cases %>% 
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>% 
+  dplyr::group_by(lphu_residence) %>% 
+  dplyr::summarise(n_cases = n()) %>% 
+  dplyr::ungroup() %>% 
+  #
+  janitor::adorn_totals()
+
+results_followup <- linelist_cases %>% 
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>% 
+  dplyr::filter(stringr::str_detect(follow_up_required, "Yes")) %>%
+  #
+  dplyr::group_by(lphu_residence) %>% 
+  dplyr::summarise(n_followup = n()) %>% 
+  dplyr::ungroup() %>% 
+  #
+  janitor::adorn_totals()
+
+results_interview <- linelist_cases %>% 
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>% 
+  dplyr::filter(!is.na(interview_date)) %>%
+  #
+  dplyr::group_by(lphu_residence) %>% 
+  dplyr::summarise(n_interview = n()) %>% 
+  dplyr::ungroup() %>% 
+  #
+  janitor::adorn_totals()
+
+results_attended <- linelist_cases %>%
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>% 
+  dplyr::filter(!is.na(facility_clean)) %>% 
+  #
+  dplyr::group_by(lphu_residence) %>% 
+  dplyr::summarise(n_attended = n()) %>% 
+  dplyr::ungroup() %>% 
+  #
+  janitor::adorn_totals()
+
+results_lphu <- results_lphu %>% 
+  dplyr::left_join(results_followup, by = "lphu_residence") %>% 
+  #
+  dplyr::mutate(percent_followup = round(n_followup / n_cases * 100, digits = 0)) %>% 
+  #
+  dplyr::left_join(results_interview, by = "lphu_residence") %>% 
+  #
+  dplyr::left_join(results_attended, by = "lphu_residence") %>% 
+  #
+  knitr::kable(table.attr = "style = \"color: black;\"",
+               align      = "lrrrrr",
+               col.names  = c("LPHU",
+                              "Total cases",
+                              "Follow-up required (n)",
+                              "Follow-up required (%)",
+                              "Interviewed (n)",
+                              "Attended facility (n)")) %>% 
+  #
+  kableExtra::kable_styling(full_width = FALSE,
+                            position   = "left",
+                            html_font  = "Arial",
+                            font_size  = 12) %>%
+  #
+  kableExtra::row_spec(row  = 0,
+                       bold = TRUE) %>% 
+  #
+  kableExtra::row_spec(row  = nrow(results_lphu),
+                       bold = TRUE)
+
+results_lphu
+
+rm(results_lphu, results_followup, results_interview, results_attended)
+```
+
+<br>
+
+**Weekly Victorian confirmed cryptosporidiosis cases notified between `r format(year_start, format = "%d %B %Y")` and `r format(extract_date, format = "%d %B %Y")`, by notification date**
+
+```{r, fig.height = 4, fig.width = 8}
+#
+linelist_cases %>% 
+  dplyr::filter(!is.na(event_date)) %>% 
+  #
+  f_format_epicurve_lphu(date_breaks = "2 week",
+                         start_date  = year_start,
+                         end_date    = extract_date,
+                         #
+                         y_max    = NA,
+                         y_breaks = 10,
+                         y_expand = 9)
+```
+
+***
+
+# Outbreak Summary
+
+**New and in progress cryptosporidiosis outbreaks associated with Victorian public facilities, `r format(year_start, format = "%d %B %Y")` to `r format(extract_date, format = "%d %B %Y")`**
+
+```{r}
+#
+table_outbreaks <- linelist_outbreaks %>% 
+  knitr::kable(table.attr = "style = \"color: black;\"",
+               align      = "lclll",
+               col.names  = c("PHESS ID",
+                              "Event date",
+                              "Name",
+                              "LGA",
+                              "LPHU")) %>% 
+  #
+  kableExtra::kable_styling(full_width = FALSE,
+                            position   = "left",
+                            html_font  = "Arial",
+                            font_size  = 12) %>%
+  #
+  kableExtra::row_spec(row  = 0,
+                       bold = TRUE)
+```
+
+`r if(nrow(linelist_outbreaks) == 0) paste0("There are currently no cryptosporidiosis outbreaks under investigation in Victoria.")`
+
+`r if(nrow(linelist_outbreaks) > 0) table_outbreaks`
+
+```{r}
+# Number of cases by facility - all Vic
+results_facility_vic <- linelist_cases %>% 
+  dplyr::distinct(phess_id, facility_clean, .keep_all = TRUE) %>% 
+  #
+  dplyr::filter(!is.na(facility_clean)) %>% 
+  #
+  dplyr::group_by(facility_clean, suburb_facility, lphu_facility, escalation_date, escalation_status, 
+                  escalation_cases, escalation_phess, onset_first, onset_last, hyperchl_date, closure_date) %>% 
+  dplyr::summarise(total_cases = n()) %>% 
+  dplyr::ungroup() %>% 
+  #
+  dplyr::select(lphu_facility, 
+                facility_clean, 
+                suburb_facility, 
+                total_cases, 
+                escalation_phess, 
+                escalation_date,
+                onset_first,
+                onset_last,
+                hyperchl_date, 
+                escalation_cases, 
+                escalation_status,
+                closure_date) %>% 
+  #
+  dplyr::arrange(desc(escalation_status), desc(escalation_cases), desc(total_cases), facility_clean)
+```
+
+
+```{r}
+# Restrict facility-level analyses to notifications with symptom onset in previous 3 months
+facility_cases <- linelist_cases %>%
+  dplyr::filter(symptom_onset >= lookback_start)
+
+results_facility_lookback <- facility_cases %>% 
+  dplyr::distinct(phess_id, facility_clean, .keep_all = TRUE) %>% 
+  #
+  dplyr::filter(!is.na(facility_clean)) %>% 
+  #
+  dplyr::group_by(facility_clean, suburb_facility, lphu_facility, escalation_date, escalation_status, 
+                  escalation_cases, escalation_phess, onset_first, onset_last, hyperchl_date, closure_date) %>% 
+  dplyr::summarise(total_cases = n()) %>% 
+  dplyr::ungroup() %>% 
+  #
+  dplyr::select(lphu_facility, 
+                facility_clean, 
+                suburb_facility, 
+                total_cases, 
+                escalation_phess, 
+                escalation_date,
+                onset_first,
+                onset_last,
+                hyperchl_date, 
+                escalation_cases, 
+                escalation_status,
+                closure_date) %>% 
+  #
+  dplyr::arrange(desc(total_cases), facility_clean)
+```
+
+***
+
+# North Eastern PHU
+
+```{r}
+#
+lphu_name <- "North Eastern"
+
+y_max    <- NA
+y_breaks <- 5
+y_expand <- 5
+```
+
+
+```{r, child = here::here("Code", "Child Rmds", "02a_lphu_dataprep.Rmd")}
+
+
+```
+
+
+```{r, echo = FALSE, results = 'asis'}
+#
+for(i in seq_along(facilities)) {
+  
+  results[[i]] <- knitr::knit_child(here::here("Code", "Child Rmds", "02b_lphu_analyses.Rmd"), quiet = TRUE, envir = environment())
+  
+}
+
+cat(unlist(results), sep = '\n')
+```
+
+# South Eastern PHU
+
+```{r}
+#
+lphu_name <- "South Eastern"
+
+y_max    <- NA
+y_breaks <- 5
+y_expand <- 5
+```
+
+
+```{r, child = here::here("Code", "Child Rmds", "02a_lphu_dataprep.Rmd")}
+
+
+```
+
+
+```{r, echo = FALSE, results = 'asis'}
+#
+for(i in seq_along(facilities)) {
+  
+  results[[i]] <- knitr::knit_child(here::here("Code", "Child Rmds", "02b_lphu_analyses.Rmd"), quiet = TRUE, envir = environment())
+  
+}
+
+cat(unlist(results), sep = '\n')
+```
+
+# Western PHU
+
+```{r}
+#
+lphu_name <- "Western"
+
+y_max    <- NA
+y_breaks <- 5
+y_expand <- 1
+```
+
+
+```{r, child = here::here("Code", "Child Rmds", "02a_lphu_dataprep.Rmd")}
+
+
+```
+
+
+```{r, echo = FALSE, results = 'asis'}
+#
+for(i in seq_along(facilities)) {
+  
+  results[[i]] <- knitr::knit_child(here::here("Code", "Child Rmds", "02b_lphu_analyses.Rmd"), quiet = TRUE, envir = environment())
+  
+}
+
+cat(unlist(results), sep = '\n')
+```
+
+# Barwon South West PHU
+
+```{r}
+#
+lphu_name <- "Barwon South West"
+
+y_max    <- NA
+y_breaks <- 5
+y_expand <- 5
+```
+
+
+```{r, child = here::here("Code", "Child Rmds", "02a_lphu_dataprep.Rmd")}
+
+
+```
+
+
+```{r, echo = FALSE, results = 'asis'}
+#
+for(i in seq_along(facilities)) {
+  
+  results[[i]] <- knitr::knit_child(here::here("Code", "Child Rmds", "02b_lphu_analyses.Rmd"), quiet = TRUE, envir = environment())
+  
+}
+
+cat(unlist(results), sep = '\n')
+```
+
+# Gippsland PHU
+
+```{r}
+#
+lphu_name <- "Gippsland"
+
+y_max    <- NA
+y_breaks <- 1
+y_expand <- 0.25
+```
+
+
+```{r, child = here::here("Code", "Child Rmds", "02a_lphu_dataprep.Rmd")}
+
+
+```
+
+
+```{r, echo = FALSE, results = 'asis'}
+#
+for(i in seq_along(facilities)) {
+  
+  results[[i]] <- knitr::knit_child(here::here("Code", "Child Rmds", "02b_lphu_analyses.Rmd"), quiet = TRUE, envir = environment())
+  
+}
+
+cat(unlist(results), sep = '\n')
+```
+
+# Goulburn Valley PHU
+
+```{r}
+#
+lphu_name <- "Goulburn Valley"
+
+y_max    <- 5
+y_breaks <- 1
+y_expand <- 0.25
+```
+
+
+```{r, child = here::here("Code", "Child Rmds", "02a_lphu_dataprep.Rmd")}
+
+
+```
+
+
+```{r, echo = FALSE, results = 'asis'}
+#
+for(i in seq_along(facilities)) {
+  
+  results[[i]] <- knitr::knit_child(here::here("Code", "Child Rmds", "02b_lphu_analyses.Rmd"), quiet = TRUE, envir = environment())
+  
+}
+
+cat(unlist(results), sep = '\n')
+```
+
+# Grampians PHU
+
+```{r}
+#
+lphu_name <- "Grampians"
+
+y_max    <- NA
+y_breaks <- 1
+y_expand <- 0.5
+```
+
+
+```{r, child = here::here("Code", "Child Rmds", "02a_lphu_dataprep.Rmd")}
+
+
+```
+
+
+```{r, echo = FALSE, results = 'asis'}
+#
+for(i in seq_along(facilities)) {
+  
+  results[[i]] <- knitr::knit_child(here::here("Code", "Child Rmds", "02b_lphu_analyses.Rmd"), quiet = TRUE, envir = environment())
+  
+}
+
+cat(unlist(results), sep = '\n')
+```
+
+# Loddon Mallee PHU
+
+```{r}
+#
+lphu_name <- "Loddon Mallee"
+
+y_max    <- NA
+y_breaks <- 2
+y_expand <- 2
+```
+
+
+```{r, child = here::here("Code", "Child Rmds", "02a_lphu_dataprep.Rmd")}
+
+
+```
+
+
+```{r, echo = FALSE, results = 'asis'}
+#
+for(i in seq_along(facilities)) {
+  
+  results[[i]] <- knitr::knit_child(here::here("Code", "Child Rmds", "02b_lphu_analyses.Rmd"), quiet = TRUE, envir = environment())
+  
+}
+
+cat(unlist(results), sep = '\n')
+```
+
+# Ovens Murray PHU
+
+```{r}
+#
+lphu_name <- "Ovens Murray"
+
+y_max    <- 5
+y_breaks <- 1
+y_expand <- 0.25
+```
+
+
+```{r, child = here::here("Code", "Child Rmds", "02a_lphu_dataprep.Rmd")}
+
+
+```
+
+
+```{r, echo = FALSE, results = 'asis'}
+#
+for(i in seq_along(facilities)) {
+  
+  results[[i]] <- knitr::knit_child(here::here("Code", "Child Rmds", "02b_lphu_analyses.Rmd"), quiet = TRUE, envir = environment())
+  
+}
+
+cat(unlist(results), sep = '\n')
+```
+
+<br/>
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

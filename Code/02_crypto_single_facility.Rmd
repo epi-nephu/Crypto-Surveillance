@@ -1,0 +1,438 @@
+---
+title: 'Cryptosporidiosis - Aquanation Ringwood'
+author_details: "Alana Little, NEPHU (alana.little@austin.org.au)"
+version_details: "v1.0, 17/09/2025"
+output: 
+  html_document: 
+    code_folding: none
+    toc: true
+    toc_depth: 2
+    toc_float: true
+knit: (function(input, ...) {
+  rmarkdown::render(input, output_file = paste0("Crypto - ", "Aquanation Ringwood - ", Sys.Date()), output_dir = "../Reports/Single Facilities") })
+---
+
+```{css, echo = FALSE}
+/* */ 
+.main-container {
+    max-width: 1000px;
+}
+
+h1.title {
+  font-weight: bold;
+  font-size: 20px;
+  color: #191d43;
+}
+
+h1 {
+  font-weight: bold;
+  font-size: 20px;
+  color: #5bc788;
+}
+
+h2 {
+  font-weight: bold;
+  font-size: 18px;
+  color: #5bc788;
+}
+
+h3 {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+body {
+  font-size: 14px;
+}
+```
+
+
+```{r, echo = FALSE, message = FALSE}
+#
+knitr::opts_chunk$set(echo    = FALSE, 
+                      warning = FALSE, 
+                      message = FALSE)
+
+options(knitr.kable.NA = '--')
+
+here::i_am("Code/02_crypto_single_facility.Rmd")
+```
+
+
+```{r}
+# Install the pacman package if you don't already have it
+if (!require("pacman")) install.packages("pacman")
+
+pacman::p_load(tidyverse,
+               here,
+               janitor,
+               lubridate,
+               rmarkdown,
+               knitr,
+               kableExtra,
+               ggnewscale)
+```
+
+
+```{r}
+# Facility
+facility_raw  <- "Aquanation Ringwood (Aquatic facility)"
+facility_name <- "Aquanation Ringwood"
+
+# Dates
+extract_date <- lubridate::ymd(Sys.Date())
+file_date    <- format(extract_date, format = "%Y%m%d")
+
+# 1-month lookback period for facility-level analyses
+lookback_start <- lubridate::ymd(extract_date - months(1))
+
+# Start and end dates for epicurves
+epicurve_start <- lookback_start - 14
+epicurve_end   <- extract_date + 3
+
+# Start and end dates for swimlane plots
+swimlane_start <- lookback_start - 14
+swimlane_end   <- extract_date + 17
+```
+
+
+```{r}
+# Functions
+source(paste0(here::here(), "/Code", "/Functions", "/f_create_epicurve.R"))
+source(paste0(here::here(), "/Code", "/Functions", "/f_create_swimlane.R"))
+```
+
+
+```{r}
+# Read in case linelist
+linelist_raw <- readxl::read_xlsx(paste0(here::here(), "/Data/VictorianCryptoCases_", file_date, ".xlsx"),
+                                  sheet     = 1,
+                                  guess_max = min(100000, Inf)) %>% 
+  #
+  janitor::clean_names() %>% 
+  #
+  dplyr::select(phess_id,
+                event_date,
+                age_years            = age_in_years_from_event_date,
+                sex,
+                suburb_residence     = suburb_town,
+                symptom_onset        = calculated_onset_date,
+                symptom_end_amount   = duration_of_symptom_s,
+                symptom_end_unit     = unit,
+                lga_residence        = lga,
+                lphu_residence       = local_public_health_unit,
+                follow_up_required   = follow_up_indicated_by_epi,
+                interview_date_phess = date,
+                completed_date       = date_completed,
+                #
+                category,
+                name,
+                suburb = city)
+
+# Basic data wrangling
+linelist_cases <- linelist_raw %>% 
+  dplyr::mutate(facility_clean = name,
+                #
+                suburb_residence = stringr::str_to_title(suburb_residence),
+                #
+                event_date           = lubridate::ymd(event_date),
+                symptom_onset        = lubridate::ymd(symptom_onset),
+                interview_date_phess = lubridate::ymd(interview_date_phess),
+                completed_date       = lubridate::ymd(completed_date),
+                #
+                symptom_days = dplyr::case_when(
+                  symptom_end_unit == "Days"  ~ symptom_end_amount * 1,
+                  symptom_end_unit == "Weeks" ~ symptom_end_amount * 7,
+                  TRUE                        ~ NA_integer_),
+                #
+                symptom_end = symptom_onset + symptom_days)
+
+# Wrangle exposure sites information
+linelist_cases <- linelist_cases %>% 
+  dplyr::filter(!is.na(name),
+                name != ",") %>%
+  #
+  tidyr::separate_longer_delim(c(category, name, suburb), delim = ",") %>% 
+  #
+  dplyr::filter(!is.na(name),
+                name != "") %>% 
+  #
+  dplyr::mutate(facility_clean = stringr::str_split(name, "\\(", simplify = TRUE)[,1],
+                facility_clean = stringr::str_squish(facility_clean),
+                facility_clean = stringr::str_to_title(facility_clean)) %>% 
+  #
+  dplyr::arrange(facility_clean) %>%
+  #
+  dplyr::filter(category != "Person") %>% 
+  #
+  dplyr::filter(symptom_onset >= lookback_start) %>% 
+  dplyr::filter(facility_clean == facility_name)
+```
+
+
+```{r}
+# Read in facility reference list
+reference_facility <- readxl::read_xlsx(paste0(here::here(), "/Data/Reference_Facility.xlsx"),
+                                        sheet     = 1,
+                                        guess_max = min(100000, Inf)) %>% 
+  #
+  janitor::clean_names() %>% 
+  #
+  dplyr::select(facility,
+                suburb_facility  = suburb,
+                lga_facility     = lga,
+                lphu_facility    = lphu,
+                hyperchl_date    = most_recent_hyperchlorination,
+                escalation_date  = most_recent_escalation,
+                closure_date     = most_recent_escalation_closed,
+                escalation_phess = escalation_phess_id,
+                escalation_cases = escalation_total_cases)
+
+# Join facility information to case data
+linelist_cases <- linelist_cases %>% 
+  dplyr::left_join(reference_facility, by = c("facility_clean" = "facility")) %>% 
+  #
+  dplyr::distinct(phess_id, facility_clean, .keep_all = TRUE)
+```
+
+
+```{r}
+# Read in exposure dates data
+linelist_dates <- readxl::read_xlsx(paste0(here::here(), "/Data/DatesAttendingFacility_", file_date, ".xlsx"),
+                                    sheet     = 1,
+                                    guess_max = min(100000, Inf)) %>% 
+  #
+  janitor::clean_names() %>% 
+  #
+  dplyr::mutate(phess_id = as.character(phess_id),
+                #
+                interview_date_manual = janitor::convert_to_date(interview_date,
+                                                                 character_fun = lubridate::dmy),
+                #
+                date_attended = janitor::convert_to_date(date_attended,
+                                                         character_fun = lubridate::dmy)) %>% 
+  #
+  dplyr::select(phess_id,
+                facility,
+                date_attended,
+                interview_date_manual)
+
+# Join exposure sites data to case data
+linelist_cases <- linelist_cases %>% 
+  dplyr::left_join(linelist_dates, by = c("phess_id", "facility_clean" = "facility")) 
+```
+
+
+```{r}
+# Data wrangling
+linelist_cases <- linelist_cases %>% 
+  dplyr::mutate(
+    symptom_end = dplyr::case_when(
+      !is.na(symptom_end) ~ symptom_end,
+      #
+      !is.na(interview_date_manual) ~ interview_date_manual,
+      !is.na(interview_date_phess)  ~ interview_date_phess,
+      #
+      !is.na(completed_date) ~ completed_date,
+      TRUE                   ~ NA_Date_),
+    #
+    interview_date = dplyr::case_when(
+      !is.na(interview_date_phess)  ~ interview_date_phess,
+      !is.na(interview_date_manual) ~ interview_date_manual,
+      !is.na(completed_date)        ~ completed_date,
+      TRUE                          ~ NA_Date_),
+    #
+    hyperchl_date = lubridate::ymd(hyperchl_date),
+    #
+    escalation_date = lubridate::ymd(escalation_date)) %>% 
+  #
+  dplyr::select(phess_id,
+                event_date,
+                age_years,
+                sex,
+                suburb_residence,
+                lga_residence,
+                lphu_residence,
+                symptom_onset,
+                symptom_end,
+                follow_up_required,
+                interview_date,
+                facility_clean,
+                suburb_facility,
+                lga_facility,
+                lphu_facility,
+                date_attended,
+                hyperchl_date,
+                escalation_date,
+                closure_date,
+                escalation_phess,
+                escalation_cases)
+
+# Most recent hyperchlorination date
+hyperchl_date <- reference_facility %>% 
+  dplyr::filter(facility == facility_name) %>% 
+  pull(hyperchl_date)
+
+# Set height for swimlane plot
+swimlane_height <- linelist_cases %>% 
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>% 
+  dplyr::summarise(total_cases = n()) %>% 
+  dplyr::mutate(height = (total_cases / 2) + 1) %>%
+  pull(height)
+```
+
+
+```{r}
+# Create wide version of dates data (prior to symptom onset)
+dates_attended_prior <- linelist_cases %>% 
+  dplyr::filter(date_attended <= symptom_onset) %>% 
+  #
+  dplyr::select(phess_id, facility_clean, date_attended) %>%
+  #
+  dplyr::arrange(phess_id, facility_clean, date_attended) %>%
+  #
+  dplyr::group_by(phess_id, facility_clean) %>%
+  #
+  dplyr::mutate(visit_number  = row_number(),
+                date_attended = format(date_attended, format = "%d/%m/%Y")) %>%
+  #
+  dplyr::ungroup() %>%
+  #
+  tidyr::pivot_wider(id_cols      = everything(),
+                     names_from   = visit_number,
+                     names_prefix = "visit_",
+                     values_from  = date_attended)
+
+dates_attended_prior <- dates_attended_prior %>% 
+  tidyr::unite("dates_attended_prior", visit_1:ncol(dates_attended_prior), sep = ", ", na.rm = TRUE)
+
+# Create wide version of dates data (after symptom onset)
+dates_attended_after <- linelist_cases %>% 
+  dplyr::filter(date_attended > symptom_onset) %>% 
+  #
+  dplyr::select(phess_id, facility_clean, date_attended) %>%
+  #
+  dplyr::arrange(phess_id, facility_clean, date_attended) %>%
+  #
+  dplyr::group_by(phess_id, facility_clean) %>%
+  #
+  dplyr::mutate(visit_number  = row_number(),
+                date_attended = format(date_attended, format = "%d/%m/%Y")) %>%
+  #
+  dplyr::ungroup() %>%
+  #
+  tidyr::pivot_wider(id_cols      = everything(),
+                     names_from   = visit_number,
+                     names_prefix = "visit_",
+                     values_from  = date_attended,
+                     values_fill  = NA)
+
+dates_after_valid <- dplyr::case_when(
+  nrow(dates_attended_after) > 0 ~ TRUE,
+  TRUE ~ FALSE
+)
+
+if(dates_after_valid) {
+  
+  dates_attended_after <- dates_attended_after %>% 
+    tidyr::unite("dates_attended_after", visit_1:ncol(dates_attended_after), sep = ", ", na.rm = TRUE)
+
+} else {
+  
+  dates_attended_after <- dates_attended_prior %>% 
+    dplyr::select(phess_id,
+                  facility_clean) %>% 
+    #
+    dplyr::mutate(dates_attended_after = "Nil")
+
+}
+```
+
+## Linelist
+
+```{r, echo = FALSE, include = TRUE, results = "asis"}
+# Linelist
+linelist_cases %>% 
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>% 
+  #
+  dplyr::select(phess_id,
+                age_years,
+                sex,
+                suburb_residence,
+                event_date,
+                symptom_onset) %>%
+  #
+  dplyr::arrange(symptom_onset) %>% 
+  #
+  dplyr::mutate(symptom_onset = format(symptom_onset, format = "%d/%m/%Y"),
+                event_date    = format(event_date, format = "%d/%m/%Y")) %>% 
+  #
+  dplyr::left_join(dates_attended_prior) %>% 
+  #
+  dplyr::left_join(dates_attended_after) %>% 
+  #
+  dplyr::select(-facility_clean) %>% 
+  #
+  knitr::kable(table.attr = "style = \"color: black;\"",
+               align      = "lrllllll",
+               col.names  = c("PHESS ID",
+                              "Age (years)",
+                              "Gender",
+                              "Suburb (residence)",
+                              "Notification date",
+                              "Symptom onset",
+                              "Before onset",
+                              "After onset")) %>%
+  #
+  kableExtra::kable_styling(full_width = FALSE,
+                            position   = "left",
+                            html_font  = "Arial",
+                            font_size  = 12) %>%
+  #
+  kableExtra::row_spec(row  = 0,
+                       bold = TRUE) %>% 
+  #
+  kableExtra::column_spec(7:8,
+                          width = "1in") %>% 
+  #
+  kableExtra::add_header_above(c(" " = 6,
+                                 "Dates attending facility" = 2))
+```
+
+***
+
+## Epicurve
+
+### Number of cryptosporidiosis cases attending `r facility_name` during acquisition period, by symptom onset date, data as of `r format(extract_date, format = "%d/%m/%Y")`
+
+```{r, echo = FALSE, include = TRUE, results = "asis", fig.height = 4, fig.width = 8}
+# Epicurve
+linelist_cases %>%
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>%
+  #
+  f_format_epicurve_facility(start_date      = epicurve_start,
+                             end_date        = epicurve_end,
+                             hyperchl_date   = hyperchl_date,
+                             escalation_date = escalation_date)
+```
+
+***
+
+## Swimlane plot
+
+### Cryptosporidiosis cases attending `r facility_name` during acquisition and/or infectious period, data as of `r format(extract_date, format = "%d/%m/%Y")`
+
+```{r, echo = FALSE, include = TRUE, results = "asis", fig.height = swimlane_height, fig.width = 9}
+# Swimlane plot
+linelist_cases %>%
+  dplyr::arrange(symptom_onset) %>%
+  #
+  f_swimlane_format(start_date      = swimlane_start,
+                    end_date        = swimlane_end,
+                    hyperchl_date   = hyperchl_date,
+                    escalation_date = escalation_date)
+```
+
+<br/>
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

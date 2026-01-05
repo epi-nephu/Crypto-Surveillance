@@ -1,0 +1,102 @@
+
+## `r facilities[i]`
+
+`r if(!is.na(escalation_dates[i])){paste0("The most recent escalation for this facility was on ", format(escalation_dates[i], format = "%d/%m/%Y"), " (PHESS ID ", escalation_phess[i], "; ", escalation_cases[i], " cases with symptom onset dates between ", format(symptom_first[i], format = "%d/%m/%Y"), " and ", format(symptom_last[i], format = "%d/%m/%Y"), ").")}`
+
+`r if(!is.na(hyperchl_dates[i])){paste0("The most recent hyperchlorination at this facility was on ", format(hyperchl_dates[i], format = "%d/%m/%Y"), ".")}`
+
+`r if(!is.na(closure_dates[i])){paste0("This escalation was closed on ", format(closure_dates[i], format = "%d/%m/%Y"), ".")}`
+
+### `r paste0("Cryptosporidiosis cases attending ", facilities[i], " during acquisition and/or infectious period, symptom onset between ", format(lookback_start, format = "%d/%m/%Y"), " and ", format(extract_date, format = "%d/%m/%Y"))`
+
+```{r, echo = FALSE, include = TRUE, results = "asis"}
+# Linelist
+linelist <- facility_cases %>% 
+  dplyr::filter(facility_clean == facilities[i]) %>%
+  #
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>% 
+  #
+  dplyr::select(phess_id,
+                age_years,
+                sex,
+                suburb_residence,
+                event_date,
+                symptom_onset) %>%
+  #
+  dplyr::arrange(symptom_onset) %>% 
+  #
+  dplyr::mutate(symptom_onset = format(symptom_onset, format = "%d/%m/%Y"),
+                event_date    = format(event_date, format = "%d/%m/%Y")) %>% 
+  #
+  dplyr::left_join(dates_attended_prior %>% 
+                     dplyr::filter(facility_clean == facilities[i]), by = "phess_id") %>% 
+  #
+  dplyr::left_join(dates_attended_after %>% 
+                     dplyr::filter(facility_clean == facilities[i]), by = "phess_id") %>% 
+  #
+  dplyr::select(-facility_clean.x,
+                -facility_clean.y) %>% 
+  #
+  knitr::kable(table.attr = "style = \"color: black;\"",
+               align      = "lrllllll",
+               col.names  = c("PHESS ID",
+                              "Age (years)",
+                              "Gender",
+                              "Suburb (residence)",
+                              "Notification date",
+                              "Symptom onset",
+                              "Before onset",
+                              "After onset")) %>%
+  #
+  kableExtra::kable_styling(full_width = FALSE,
+                            position   = "left",
+                            html_font  = "Arial",
+                            font_size  = 12) %>%
+  #
+  kableExtra::row_spec(row  = 0,
+                       bold = TRUE) %>% 
+  #
+  kableExtra::column_spec(7:8,
+                          width = "1in") %>% 
+  #
+  kableExtra::add_header_above(c(" " = 6,
+                                 "Dates attending facility" = 2))
+
+linelist
+```
+
+### `r paste0("Number of cryptosporidiosis cases attending ", facilities[i], " during acquisition period, symptom onset between ", format(lookback_start, format = "%d/%m/%Y"), " and ", format(extract_date, format = "%d/%m/%Y"))`
+
+```{r, echo = FALSE, include = TRUE, results = "asis", fig.height = 3, fig.width = 8}
+# Epicurve
+epicurve <- facility_cases %>%
+  dplyr::filter(facility_clean == facilities[i]) %>%
+  #
+  dplyr::distinct(phess_id, .keep_all = TRUE) %>%
+  #
+  f_format_epicurve_facility(start_date      = epicurve_start,
+                             end_date        = epicurve_end,
+                             hyperchl_date   = hyperchl_dates[i],
+                             escalation_date = escalation_dates[i])
+
+epicurve
+```
+
+### `r paste0("Cryptosporidiosis cases attending ", facilities[i], " during acquisition and/or infectious period, symptom onset between ", format(lookback_start, format = "%d/%m/%Y"), " and ", format(extract_date, format = "%d/%m/%Y"))`
+
+```{r, echo = FALSE, include = TRUE, results = "asis", fig.height = swimlane_heights[i], fig.width = 9}
+# Swimlane plot
+swimlane <- facility_cases %>%
+  dplyr::filter(facility_clean == facilities[i]) %>%
+  #
+  dplyr::arrange(symptom_onset) %>%
+  #
+  f_swimlane_format(start_date      = swimlane_start,
+                    end_date        = swimlane_end,
+                    hyperchl_date   = hyperchl_dates[i],
+                    escalation_date = escalation_dates[i])
+
+swimlane
+```
+
+***
