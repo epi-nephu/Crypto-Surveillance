@@ -80,8 +80,8 @@ pacman::p_load(tidyverse,
 
 ```{r}
 # Dates
-year_start   <- lubridate::ymd(Sys.Date() - years(1) + days(1))
 extract_date <- lubridate::ymd(Sys.Date())
+year_start   <- lubridate::ymd(Sys.Date() - years(1) + days(1))
 file_date    <- format(extract_date, format = "%Y%m%d")
 
 # 3-month lookback period for facility-level analyses
@@ -158,20 +158,20 @@ linelist_exposures <- linelist_cases %>%
   #
   dplyr::filter(!is.na(name),
                 name != ",") %>%
-  #
-  # Are you getting a tidyr::separate_longer_delim() error? If so, uncomment lines 177-181
+  
+  # Are you getting a tidyr::separate_longer_delim() error? If so, uncomment lines 169-173
   # and check for rows where there is an unequal number of categories, facility names, and 
   # suburbs. This is caused by a superfluous comma - usually in the exposure site name. Go
   # into the PHESS record and remove any commas from the exposure type, exposure name, and 
-  # exposure suburb fields. You can then comment out lines 177-181, re-extract the PHESS 
+  # exposure suburb fields. You can then comment out lines 169-173, re-extract the PHESS 
   # data, and rerun the report.
-
-#dplyr::mutate(n_category = stringr::str_count(category, ",") + 1,
-#              n_name     = stringr::str_count(name, ",") + 1,
- #            n_suburb   = stringr::str_count(suburb, ",") + 1) %>%
-# 
-# dplyr::filter(n_category != n_name | n_name != n_suburb | n_suburb != n_category)
-  #
+  
+  # dplyr::mutate(n_category = stringr::str_count(category, ",") + 1,
+  #               n_name     = stringr::str_count(name, ",") + 1,
+  #               n_suburb   = stringr::str_count(suburb, ",") + 1) %>%
+  # #
+  # dplyr::filter(n_category != n_name | n_name != n_suburb | n_suburb != n_category)
+  
   tidyr::separate_longer_delim(c(category, name, suburb), delim = ",") %>% 
   #
   dplyr::filter(!is.na(name),
@@ -232,8 +232,10 @@ linelist_exposures <- linelist_cases %>%
       facility_clean == "Body Corporate Ps 428541d" ~ NA_character_,
       facility_clean == "Jayden And Tayla's Residence" ~ NA_character_,
       facility_clean == "Taran Gisbornes Residence" ~ NA_character_,
+      facility_clean == "Private Residence - 10 Chaucer Cres Bundoora 3083" ~ NA_character_,
       facility_clean == "Private Residence - 15 Gerald St Ferntree Gully" ~ NA_character_,
       facility_clean == "Private Residence - 21 Henbury Street Huntly" ~ NA_character_,
+      facility_clean == "Private Residence - 28 Kenneth Street Bulleen Vic" ~ NA_character_,
       facility_clean == "Private Residence: 5 Collins St Red Hill 3937" ~ NA_character_,
 
       # Remove natural water sources
@@ -519,6 +521,7 @@ linelist_outbreaks <- readxl::read_xlsx(paste0(here::here(), "/Data/NEPHUOutbrea
   dplyr::select(phess_id,
                 event_date,
                 event_name,
+                city,
                 lga  = local_government_area,
                 lphu = local_public_health_unit)
 
@@ -530,7 +533,14 @@ linelist_outbreaks <- linelist_outbreaks %>%
                   lphu == "44B2"  ~ "North Eastern",
                   lphu == "77J9"  ~ "South Eastern",
                   lphu == "356J1" ~ "Western",
-                  TRUE            ~ lphu)) %>% 
+                  TRUE            ~ lphu),
+                #
+                lga = stringr::str_extract(lga, pattern = "[^(]+"),
+                lga = stringr::str_trim(lga),
+                #
+                city = stringr::str_extract(city, pattern = "[^(]+"),
+                city = stringr::str_trim(city),
+                city = stringr::str_to_title(city)) %>% 
   #
   dplyr::arrange(desc(event_date))
 ```
@@ -657,7 +667,7 @@ rm(results_lphu, results_followup, results_interview, results_attended)
 linelist_cases %>% 
   dplyr::filter(!is.na(event_date)) %>% 
   #
-  f_format_epicurve_lphu(date_breaks = "2 week")
+  f_format_epicurve_lphu()
 ```
 
 ***
@@ -737,7 +747,8 @@ recent_cases <- facility_cases %>%
   #
   dplyr::group_by(lphu_facility,
                   facility_clean,
-                  suburb_facility) %>% 
+                  suburb_facility,
+                  lga_facility) %>% 
   #
   dplyr::summarise(n_cases = n()) %>% 
   #
@@ -747,10 +758,11 @@ recent_cases <- facility_cases %>%
 
 table_recent_cases <- recent_cases %>% 
   knitr::kable(table.attr = "style = \"color: black;\"",
-               align      = "lllr",
+               align      = "llllr",
                col.names  = c("LPHU",
                               "Facility",
                               "Suburb",
+                              "LGA",
                               "Total cases")) %>% 
   #
   kableExtra::kable_styling(full_width = FALSE,
@@ -766,7 +778,9 @@ table_recent_cases <- recent_cases %>%
 
 `r if(nrow(recent_cases) > 0) table_recent_cases`
 
-`r if(nrow(recent_cases) > 0) paste0("During the past 42 days there have been ", nrow(recent_cases), " public facilities in Victoria with two or more cryptosporidiosis cases within the past 42 days. Please review the linelist, epicurve, and swimlane plot in the relevant LPHU section of the report to assess whether these facilities represent an outbreak that requires escalation.")`
+`r if(nrow(recent_cases) > 0) paste0("There are ", nrow(recent_cases), " public facilities in Victoria that have been attended by two or more cryptosporidiosis cases with symptom onsets within the past 42 days.")`
+
+`r if(nrow(recent_cases) > 0) paste0("Please review the linelists, epicurves, and swimlane plots for each of these facilities in the relevant LPHU section of the report to assess whether any of these facilities represent an outbreak that requires further investigation or escalation.")`
 
 <br>
 
@@ -776,10 +790,11 @@ table_recent_cases <- recent_cases %>%
 #
 table_outbreaks <- linelist_outbreaks %>% 
   knitr::kable(table.attr = "style = \"color: black;\"",
-               align      = "lclll",
+               align      = "lcllll",
                col.names  = c("PHESS ID",
                               "Event date",
                               "Name",
+                              "Suburb",
                               "LGA",
                               "LPHU")) %>% 
   #
@@ -803,10 +818,6 @@ table_outbreaks <- linelist_outbreaks %>%
 ```{r}
 #
 lphu_name <- "North Eastern"
-
-y_max    <- NA
-y_breaks <- 5
-y_expand <- 5
 ```
 
 
@@ -832,10 +843,6 @@ cat(unlist(results), sep = '\n')
 ```{r}
 #
 lphu_name <- "South Eastern"
-
-y_max    <- NA
-y_breaks <- 5
-y_expand <- 5
 ```
 
 
@@ -861,10 +868,6 @@ cat(unlist(results), sep = '\n')
 ```{r}
 #
 lphu_name <- "Western"
-
-y_max    <- NA
-y_breaks <- 5
-y_expand <- 1
 ```
 
 
@@ -890,10 +893,6 @@ cat(unlist(results), sep = '\n')
 ```{r}
 #
 lphu_name <- "Barwon South West"
-
-y_max    <- NA
-y_breaks <- 5
-y_expand <- 5
 ```
 
 
@@ -919,10 +918,6 @@ cat(unlist(results), sep = '\n')
 ```{r}
 #
 lphu_name <- "Gippsland"
-
-y_max    <- NA
-y_breaks <- 1
-y_expand <- 0.25
 ```
 
 
@@ -948,10 +943,6 @@ cat(unlist(results), sep = '\n')
 ```{r}
 #
 lphu_name <- "Goulburn Valley"
-
-y_max    <- 5
-y_breaks <- 1
-y_expand <- 0.25
 ```
 
 
@@ -977,10 +968,6 @@ cat(unlist(results), sep = '\n')
 ```{r}
 #
 lphu_name <- "Grampians"
-
-y_max    <- NA
-y_breaks <- 1
-y_expand <- 0.5
 ```
 
 
@@ -1006,10 +993,6 @@ cat(unlist(results), sep = '\n')
 ```{r}
 #
 lphu_name <- "Loddon Mallee"
-
-y_max    <- NA
-y_breaks <- 2
-y_expand <- 2
 ```
 
 
@@ -1035,10 +1018,6 @@ cat(unlist(results), sep = '\n')
 ```{r}
 #
 lphu_name <- "Ovens Murray"
-
-y_max    <- 5
-y_breaks <- 1
-y_expand <- 0.25
 ```
 
 
