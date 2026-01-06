@@ -3,7 +3,7 @@
 # Function for creating epi curves based on symptom onset date
 
 # Format VIC/LPHU level epi curve ----------------------------------------------
-f_format_epicurve_lphu <- function(data, date_breaks, y_max = NA) {
+f_format_epicurve_lphu <- function(data, date_breaks = "2 week") {
   
   figure <- ggplot(data) +
     geom_histogram(aes(x = event_date),
@@ -14,11 +14,29 @@ f_format_epicurve_lphu <- function(data, date_breaks, y_max = NA) {
     #
     scale_x_date(expand      = expansion(add = c(3, 3)),
                  date_breaks = date_breaks,
-                 date_labels = "%d-%b") +
-    #
-    scale_y_continuous(limits = c(0, y_max),
-                       breaks = scales::breaks_pretty(),
-                       expand = expansion(mult = c(0, 0.1))) +
+                 date_labels = "%d-%b")
+
+  ggplot_build(figure)$data[[1]]
+  
+  y_max <- max(ggplot_build(figure)$data[[1]]$count)
+  
+  figure <- figure +
+    scale_y_continuous(limits = c(0, dplyr::case_when(y_max <= 5   ~ 5.125,
+                                                      y_max <= 10  ~ (ceiling(y_max / 1) * 1) + (y_max * 0.05),
+                                                      y_max <= 50  ~ (ceiling(y_max / 5) * 5) + (y_max * 0.05),
+                                                      y_max <= 100 ~ (ceiling(y_max / 10) * 10) + (y_max * 0.05),
+                                                      y_max <= 200 ~ (ceiling(y_max / 20) * 20) + (y_max * 0.05),
+                                                      y_max <= 500 ~ (ceiling(y_max / 50) * 50) + (y_max * 0.05),
+                                                      TRUE ~ NA)),
+                       #
+                       breaks = scales::breaks_width(dplyr::case_when(y_max <= 10  ~ 1,
+                                                                      y_max <= 50  ~ 5,
+                                                                      y_max <= 100 ~ 10,
+                                                                      y_max <= 200 ~ 20,
+                                                                      y_max <= 500 ~ 50,
+                                                                      TRUE ~ NA)),
+                       #
+                       expand = expansion(add = c(0, 0))) +
     #
     labs(title = NULL,
          x     = "Notification date",
@@ -79,16 +97,32 @@ f_format_epicurve_facility <- function(data, start_date, end_date, hyperchl_date
   
   ggplot_build(figure)$data[[1]]
   
+  y_max <- max(ggplot_build(figure)$data[[1]]$count)
+  
   figure <- figure +
-    scale_y_continuous(limits = c(0, dplyr::case_when(max(ggplot_build(figure)$data[[1]]$count) < 5 ~ 5.25,
-                                                      TRUE ~ max(ggplot_build(figure)$data[[1]]$count) * 1.1)),
+    scale_y_continuous(limits = c(0, dplyr::case_when(y_max <= 5   ~ 5.125,
+                                                      y_max <= 10  ~ (ceiling(y_max / 1) * 1) + (y_max * 0.05),
+                                                      y_max <= 50  ~ (ceiling(y_max / 5) * 5) + (y_max * 0.05),
+                                                      y_max <= 100 ~ (ceiling(y_max / 10) * 10) + (y_max * 0.05),
+                                                      y_max <= 200 ~ (ceiling(y_max / 20) * 20) + (y_max * 0.05),
+                                                      y_max <= 500 ~ (ceiling(y_max / 50) * 50) + (y_max * 0.05),
+                                                      TRUE ~ NA)),
+                       #
+                       breaks = scales::breaks_width(dplyr::case_when(y_max <= 10  ~ 1,
+                                                                      y_max <= 50  ~ 5,
+                                                                      y_max <= 100 ~ 10,
+                                                                      y_max <= 200 ~ 20,
+                                                                      y_max <= 500 ~ 50,
+                                                                      TRUE ~ NA)),
+                       #
                        expand = expansion(add = c(0, 0))) +
     #
-    labs(title   = " ",
-         x       = "Symptom onset date",
-         y       = "Number of cases") +
+    labs(title = " ",
+         x     = "Symptom onset date",
+         y     = "Number of cases") +
     #
     theme_classic() +
+    #
     theme(axis.title  = element_text(size = 9),
           axis.text   = element_text(size = 8),
           axis.text.x = element_text(angle = 90,
