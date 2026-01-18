@@ -1,5 +1,5 @@
 ---
-title: 'Cryptosporidiosis - Aquanation Ringwood'
+title: 'Cryptosporidiosis - FACILITY NAME'
 author_details: "Alana Little, NEPHU (alana.little@austin.org.au)"
 version_details: "v1.0, 17/09/2025"
 output: 
@@ -9,7 +9,7 @@ output:
     toc_depth: 2
     toc_float: true
 knit: (function(input, ...) {
-  rmarkdown::render(input, output_file = paste0("Crypto - ", "Aquanation Ringwood - ", Sys.Date()), output_dir = "../Reports/Single Facilities") })
+  rmarkdown::render(input, output_file = paste0("Crypto - ", "FACILITY NAME - ", Sys.Date()), output_dir = "../Reports/Single Facilities") })
 ---
 
 ```{css, echo = FALSE}
@@ -76,15 +76,14 @@ pacman::p_load(tidyverse,
 
 ```{r}
 # Facility
-facility_raw  <- "Aquanation Ringwood (Aquatic facility)"
-facility_name <- "Aquanation Ringwood"
+facility_name <- "FACILITY NAME" # as recorded in Reference_Facility.xlsx
 
 # Dates
 extract_date <- lubridate::ymd(Sys.Date())
 file_date    <- format(extract_date, format = "%Y%m%d")
 
-# 1-month lookback period for facility-level analyses
-lookback_start <- lubridate::ymd(extract_date - months(1))
+# 3-month lookback period for facility-level analyses
+lookback_start <- lubridate::ymd(extract_date - months(3))
 
 # Start and end dates for epicurves
 epicurve_start <- lookback_start - 14

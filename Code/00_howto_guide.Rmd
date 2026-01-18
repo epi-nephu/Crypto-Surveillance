@@ -62,31 +62,29 @@ here::i_am("Code/00_howto_guide.Rmd")
 knitr::include_graphics(here::here("Screenshots", "title_banner.PNG"))
 ```
 
-<!-- # Report Production Overview -->
-
-<!-- > Insert handy flowchart here -->
-
-<!-- *** -->
-
 # Purpose of *Cryptosporidium* Reporting
 
-* The NEPHU *Cryptosporidium* Surveillance Report is a retrospective epidemiological review of cryptosporidiosis notifications for Victoria, with a focus on notifications associated with aquatic facilities.
+* The *NEPHU Cryptosporidium Surveillance Report (Crypto in Victoria)* is a retrospective epidemiological review of cryptosporidiosis notifications for Victoria, with a focus on notifications associated with aquatic and other public facilities.
 
     * Summary data for case numbers and public health actions for the past 12 months.
 
-    * A line listing of all aquatic facility cryptosporidiosis outbreaks over the past 12 months.
+    * Epi curves for each LPHU and Victoria for the past 12 months.
     
-    * Detailed analyses for each aquatic facility (line lists, epi curves, and swimlane plots).
+    * List of facilities with two or more cryptosporidiosis notifications during 42 day lookback window.
+    
+    * List of new and in progress cryptosporidiosis outbreaks.
+    
+    * Detailed analyses for each public facility (line lists, epi curves, and swimlane plots).
 
 * The report is run weekly on Tuesdays by the NEPHU Epidemiology and Intelligence Team.
 
-    * Reports are uploaded to [PHU-IH.](https://dhhsvicgovau.sharepoint.com/:f:/r/sites/PHUIH/Streams/Communicable%20Disease%20Documents/1.%20Important%20Resources/LPHU%20Developed%20CD%20Resources/NEPHU%20-%20Cryptosporidium%20Surveillance?csf=1&web=1&e=Jyd3tY)
+    * Reports are uploaded to [PHU-IH](https://dhhsvicgovau.sharepoint.com/:f:/r/sites/PHUIH/Streams/Communicable%20Disease%20Documents/Communicable%20Disease%20Resources/LPHU%20Developed%20CD%20Resources/NEPHU%20-%20Cryptosporidium%20Surveillance/Reports?csf=1&web=1&e=GscWTp).
 
-    * Reports can be sent via email upon request.
+    * Reports can also be sent via email upon request.
 
 ***
 
-# A Step-by-Step Guide to Running the NEPHU *Cryptosporidium* Surveillance Report
+# A Step-by-Step Guide to Running the Report
 
 ## Part 1: Data Prep
 
@@ -111,9 +109,6 @@ knitr::include_graphics(here::here("Screenshots", "folder_data.PNG"))
 * Victorian crypto notifications:
 
     * Maven Reporting > NEPHU Reports > Victorian Crypto Cases
-    * Condition: Cryptosporidiosis
-    * Local public health unit: Select all
-    * Most recent event classification: Confirmed
     * Report period: 12 months
     * Output type: Excel
     * Rename file to VictorianCryptoCases_YYYYMMDD
@@ -141,24 +136,24 @@ knitr::include_graphics(here::here("Screenshots", "phess_outbreaks.PNG"))
 
 In addition to the PHESS extracts, the report uses two manual datasets.
 
-* Pools reference list:
+* Facility reference list:
 
    * This is a manual list maintained by the NEPHU Epidemiology and Intelligence Team
-   * Contains information about the location of each aquatic facility
+   * Contains information about the location of each public facility
    * If known, the dates of the most recent escalation and most recent hyperchlorination can be recorded
-   * You will be updating the list if new pools are identified when you run the report
+   * You will be updating the list if new facilities are identified when you run the report
 
 ```{r, out.width = '800px'}
 #
-knitr::include_graphics(here::here("Screenshots", "data_pools.PNG"))
+knitr::include_graphics(here::here("Screenshots", "data_facility.PNG"))
 ```
 
 <br/>
    
-* Dates of pool attendance:
+* Dates of attendance:
 
    * This is a manual list maintained by the NEPHU Epidemiology and Intelligence Team
-   * These data are used to show the dates of pool attendance in the facility-level linelists and swimlane plots
+   * These data are used to show the dates of attendance in the facility-level linelists and swimlane plots
    * You will be updating the list if new NEPHU cases are identified when you run the report
 
 ```{r, out.width = '800px'}
@@ -170,7 +165,7 @@ knitr::include_graphics(here::here("Screenshots", "data_dates.PNG"))
 
 ## Part 2: Running the Report
 
-Open the R Project file.
+Open the R Project file from Windows Explorer.
 
 ```{r, out.width = '800px'}
 #
@@ -180,6 +175,8 @@ knitr::include_graphics(here::here("Screenshots", "folder_rproject.PNG"))
 <br/>
 
 Open 01_crypto_vic_facilities.Rmd
+
+If you just want to quickly check a single facility rather than running the full report, 02_crypto_single_facility.Rmd allows you to do this. Nifty!
 
 ```{r, out.width = '600px'}
 #
@@ -206,7 +203,7 @@ knitr::include_graphics(here::here("Screenshots", "code_knit.PNG"))
 
 <br/>
 
-If everything has worked as intended you should now have a html file in the Reports folder titled: Crypto in Victorian Aquatic Facilities YYYY-MM-DD (YYYY-MM-DD is the current calendar date).
+If everything has worked as intended you should now have a html file in the Reports folder titled: *YYYY-MM-DD Crypto in Victoria* (YYYY-MM-DD is the current calendar date).
 
 ```{r, out.width = '800px'}
 #
@@ -215,7 +212,7 @@ knitr::include_graphics(here::here("Screenshots", "folder_reports.PNG"))
 
 <br/>
 
-* If there are new pools identified, a list will print at the top of the report. Review the pools on this list and add them to the Reference_Pools.xlsx if required. 
+If there are new facilities identified, a list will print at the top of the report. Review the facilities on this list and add them to the Reference_Facility.xlsx if required. 
 
 ```{r, out.width = '600px'}
 #
@@ -224,7 +221,7 @@ knitr::include_graphics(here::here("Screenshots", "report_newpools.PNG"))
 
 <br/>
 
-* Check whether they are already in Reference_Pools but with a different spelling, abbreviation, etc. You can add tidy up messy pool name data in the code - remember that R is case-sensitive and names have to be identical to match across datasets (NRMA is not the same as Nrma).
+Check whether they are already in Reference_Facility but with a different spelling, abbreviation, etc. You can add tidy up messy facility name data in the code - remember that R is case-sensitive and names have to be identical to match across datasets (NRMA is not the same as Nrma).
 
 ```{r, out.width = '600px'}
 #
@@ -233,7 +230,16 @@ knitr::include_graphics(here::here("Screenshots", "code_messynames.PNG"))
 
 <br/>
 
-* If there are new NEPHU cases identified, a list will print at the top of the report. Review these cases and add them to the DatesAttendingPools_YYYYMMDD.xlsx if required. 
+Private residences and natural water bodies (e.g. lakes, oceans) will also show up on this list. We exclude these from the report, since there are very few public health actions to take in these situations. It would be rather difficult to hyperchlorinate a lake! Interstate facilities are also excluded, as the report is focused on exposures in Victoria. Similar to the messy name data, the code should be updated to exclude (recode to NA_character) private residences, natural water bodies, and interstate facilities.
+
+```{r, out.width = '600px'}
+#
+knitr::include_graphics(here::here("Screenshots", "code_exclusions.PNG"))
+```
+
+<br/>
+
+If there are new NEPHU cases identified, a list will print at the top of the report. Review these cases and add them to DatesAttendingFacility_YYYYMMDD.xlsx if required.
 
 ```{r, out.width = '600px'}
 #
@@ -253,6 +259,52 @@ knitr::include_graphics(here::here("Screenshots", "report_complete.PNG"))
 
 ## Part 3: Reviewing the Report
 
-> Work in progress!
+Look through each of the sections of the report. Does everything look as expected (e.g. no jankiness with tables or charts)? 
+
+Review the facilities identified in the Outbreak Summary section. Are there any that may represent a new outbreak? Are there any that need to be escalated, either internally at NEPHU or to another LPHU?
+
+Why a 56 day lookback? Great question! We are looking for facilities that have had two cases attend with symptom onset within 28 days of each other. 56 days (2x 28 days) gives us a bit of wriggle room, just in case (for example) there was a case with onset 12 days ago preceded by a case with onset 31 days ago.
+
+We're choosing sensitivity over specificity at this stage - flag possible outbreaks early then look at the linelists, epicurves, and swimlane plots to get more information.
+
+```{r, out.width = '600px'}
+#
+knitr::include_graphics(here::here("Screenshots", "report_outbreaks.PNG"))
+```
+
+<br/>
+
+Upload the report to [PHU-IH](https://dhhsvicgovau.sharepoint.com/:f:/r/sites/PHUIH/Streams/Communicable%20Disease%20Documents/Communicable%20Disease%20Resources/LPHU%20Developed%20CD%20Resources/NEPHU%20-%20Cryptosporidium%20Surveillance/Reports?csf=1&web=1&e=GscWTp).
+
+```{r, out.width = '800px'}
+#
+knitr::include_graphics(here::here("Screenshots", "report_phuih.PNG"))
+```
+
+<br/>
+
+## Troubleshooting
+
+Everything should run smoothly, but if the report fails to run I highly recommend running the code line-by-line. It's also very good practice to run a new report line-by-line the first few times you run it. This allows you to become familiar with the code and what it does.
+
+What does line-by-line mean? Starting from the first R chunk, run each line of code in order. You don't need to run the YAML header or the first css code chunk line-by-line. If you try to you will get some esoteric error messages! You also do not need to run the narrative text sections either, just the code in the R code chunks.
+
+```{r, out.width = '800px'}
+#
+knitr::include_graphics(here::here("Screenshots", "code_starthere.PNG"))
+```
+
+<br/>
+
+The most common reason for the report to fail is because of a superfluous comma in an exposure site name in PHESS. It's so common that there is troubleshooting advice built into the report.
+
+Ideally, there should be no commas in the names of exposure sites when they are entered into PHESS, because many programs will treat a comma as a delimiter and will split text into separate columns when they see a comma. For example, "Fake Swim School, Ivanhoe" will be translated into two entries: "Fake Swim School" and "Ivanhoe", and this will break the code because it doesn't know what to do with this extra "Ivanhoe" column.
+
+```{r, out.width = '600px'}
+#
+knitr::include_graphics(here::here("Screenshots", "code_error.PNG"))
+```
+
+<br/>
 
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

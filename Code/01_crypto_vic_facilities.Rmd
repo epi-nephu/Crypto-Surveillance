@@ -9,7 +9,7 @@ output:
     toc_depth: 2
     toc_float: true
 knit: (function(input, ...) {
-  rmarkdown::render(input, output_file = paste0(Sys.Date(), "TEST Crypto in Victoria"), output_dir = "../Reports") })
+  rmarkdown::render(input, output_file = paste0(Sys.Date(), " Crypto in Victoria"), output_dir = "../Reports") })
 ---
 
 ```{css, echo = FALSE}
@@ -190,66 +190,39 @@ linelist_exposures <- linelist_cases %>%
       facility_clean == "Aqua Schools Sunbury" ~ "AQUA Schools Sunbury",
       facility_clean == "Aquapulse Hoppers Crossing" ~ "AquaPulse Hoppers Crossing",
       facility_clean == "Bayfit Leisure Centre" ~ "BayFit Leisure Centre",
-      facility_clean == "Big4 Yarra Valley Park Lane Holiday Park" ~ "BIG4 Yarra Valley Park Lane",
-      facility_clean == "Bluefit Swimming - Mill Park" ~ "BlueFit Swimming",
-      facility_clean == "Brunswickcity Baths" ~ "Brunswick City Baths",
       facility_clean == "Casey Race Ccc" ~ "Casey Recreation & Aquatic Centre",
       facility_clean == "Discovery Parks - Echuca" ~ "Discovery Park - Echuca",
-      facility_clean == "Discovery Park Maidens Inn" ~ "Discovery Park - Maidens Inn",
-      facility_clean == "Dreamworld - Gold Coast Theme Park" ~ "Dreamworld Gold Coast",
-      facility_clean == "Keilor East Leisure Centre" ~ "East Keilor Leisure Centre",
-      facility_clean == "Knox Leisureworks Ymca" ~ "Knox Leisureworks YMCA",
-      facility_clean == "Hepburn Springs Bathouse" ~ "Hepburn Springs Bathhouse",
-      facility_clean == "John Sugden Swim School Kilsyth South" ~ "John William Sugden Swim School - Kilsyth South",
+      facility_clean == "Edge Aquatics Baranduda 2 Sage Court" ~ "Edge Aquatics",
       facility_clean == "Jubilee Park - 37 Greenwood Avenue Ringwood" ~ "Jubilee Park",
       facility_clean == "Jump Swim School Berwick" ~ "Jump! Swim Schools Berwick",
-      facility_clean == "Jump Swim School Flemington" ~ "Jump! Swim Schools Flemington",
-      facility_clean == "Jump! Swim School Lilydale" ~ "Jump! Swim Schools Lilydale",
-      facility_clean == "Kic Swim School" ~ "KIC Swim School",
       facility_clean == "Kiddieswim Australia Pty Ltd" ~ "Kiddieswim Australia",
-      facility_clean == "Kings Swim Chirnside Park" ~ "Kingswim Chirnside Park",
-      facility_clean == "Nrma Bairnsdale Riverside Holiday Park" ~ "NRMA Bairnsdale Riverside Holiday Park",
-      facility_clean == "Nrma Eastern Beach Holiday Park" ~ "NRMA Eastern Beach Holiday Park",
+      facility_clean == "Knox Leisureworks Ymca" ~ "Knox Leisureworks YMCA",
+      facility_clean == "Nrma Ballarat Holiday Park" ~ "NRMA Ballarat Holiday Park",
       facility_clean == "Nrma Echuca Holiday Park" ~ "NRMA Echuca Holiday Park",
-      facility_clean == "Paul Saddler Swimland" ~ "Paul Sadler Swimland Essendon",
-      facility_clean == "Racv Cobram Resort" ~ "RACV Cobram Resort",
-      facility_clean == "Racv Noosa Resort" ~ "RACV Noosa Resort",
-      facility_clean == "Royal Melbourne" ~ "Royal Melbourne Hospital",
-      facility_clean == "Sense Of Self" ~ "Sense of Self Day Spa",
-      facility_clean == "Urbnsurf Melbourne" ~ "URBNSURF Melbourne",
-      facility_clean == "Watermarc Banyule" ~ "WaterMarc Banyule",
-      facility_clean == "Wet'n'wild Gold Coast" ~ "Wet'n'Wild Gold Coast",
       facility_clean == "Toby Haenen Swim Centre Chelsea Heights" ~ "Toby Haenen Swim Centre",
       facility_clean == "Vermont Views Racf Vermont South" ~ "Vermont Views RACF Vermont South",
-      facility_clean == "Wodonga Abattoir 54 Kelly St Wodonga Vic 3690" ~ "Wodonga Abattoir",
+      facility_clean == "Watermarc Banyule" ~ "WaterMarc Banyule",
 
       # Remove private residences
       facility_clean == "1333 Murray River Rd Talgarno" ~ NA_character_,
-      facility_clean == "283 Spring St Melbourne" ~ NA_character_,
       facility_clean == "55 Margaret Court Dr" ~ NA_character_,
       facility_clean == "7 Sinnett Court West Wodonga Vic 3690" ~ NA_character_,
-      facility_clean == "95/33 La Trobe St Melbourne" ~ NA_character_,
-      facility_clean == "Body Corporate Ps 428541d" ~ NA_character_,
-      facility_clean == "Jayden And Tayla's Residence" ~ NA_character_,
-      facility_clean == "Taran Gisbornes Residence" ~ NA_character_,
       facility_clean == "Private Residence - 10 Chaucer Cres Bundoora 3083" ~ NA_character_,
       facility_clean == "Private Residence - 15 Gerald St Ferntree Gully" ~ NA_character_,
-      facility_clean == "Private Residence - 21 Henbury Street Huntly" ~ NA_character_,
       facility_clean == "Private Residence - 28 Kenneth Street Bulleen Vic" ~ NA_character_,
       facility_clean == "Private Residence: 5 Collins St Red Hill 3937" ~ NA_character_,
+      
+      # Remove interstate facilities
+      facility_clean == "Big 4 Deniliquin" ~ NA_character_,
+      facility_clean == "Swimtech Albury" ~ NA_character_,
 
       # Remove natural water sources
       facility_clean == "Alpine National Park Tawonga" ~ NA_character_,
       facility_clean == "Bali-Indonesia" ~ NA_character_,
-      facility_clean == "Bangkok Thailand" ~ NA_character_,
       facility_clean == "Benalla Rural City Council" ~ NA_character_,
-      facility_clean == "Broken River Benalla" ~ NA_character_,
       facility_clean == "Fleming Park Brunswick" ~ NA_character_,
       facility_clean == "Lake Eildon" ~ NA_character_,
-      facility_clean == "Mansfield Lake - Lake Eildon" ~ NA_character_,
-      facility_clean == "Pambula Beach" ~ NA_character_,
-      facility_clean == "Suvarnabhumi Airport Bangkok Thailand" ~ NA_character_,
-      facility_clean == "Suvarnabhumi Airport" ~ NA_character_,
+      facility_clean == "Williamstown Beach" ~ NA_character_,
       facility_clean == "Yarrawonga Shire Of Moira Vic" ~ NA_character_,
       #
       TRUE ~ as.character(facility_clean))) %>% 
@@ -734,7 +707,7 @@ results_facility_lookback <- facility_cases %>%
   dplyr::arrange(desc(total_cases), facility_clean)
 ```
 
-**Victorian public facilities with two or more cryptosporidiosis notifications, `r format(extract_date - 42, format = "%d %B %Y")` to `r format(extract_date, format = "%d %B %Y")`**
+**Victorian public facilities with two or more cryptosporidiosis notifications, `r format(extract_date - 56, format = "%d %B %Y")` to `r format(extract_date, format = "%d %B %Y")`**
 
 ```{r}
 #
@@ -743,7 +716,7 @@ recent_cases <- facility_cases %>%
   dplyr::distinct(phess_id, facility_clean, .keep_all = TRUE) %>% 
   dplyr::arrange(facility_clean, symptom_onset) %>% 
   #
-  dplyr::filter(symptom_onset >= extract_date - 42) %>% 
+  dplyr::filter(symptom_onset >= extract_date - 56) %>% 
   #
   dplyr::group_by(lphu_facility,
                   facility_clean,
@@ -774,11 +747,11 @@ table_recent_cases <- recent_cases %>%
                        bold = TRUE)
 ```
 
-`r if(nrow(recent_cases) == 0) paste0("There are no public facilities in Victoria with two or more cryptosporidiosis cases within the past 42 days.")`
+`r if(nrow(recent_cases) == 0) paste0("There are no public facilities in Victoria with two or more cryptosporidiosis cases within the past 56 days.")`
 
 `r if(nrow(recent_cases) > 0) table_recent_cases`
 
-`r if(nrow(recent_cases) > 0) paste0("There are ", nrow(recent_cases), " public facilities in Victoria that have been attended by two or more cryptosporidiosis cases with symptom onsets within the past 42 days.")`
+`r if(nrow(recent_cases) > 0) paste0("There are ", nrow(recent_cases), " public facilities in Victoria that have been attended by two or more cryptosporidiosis cases with symptom onsets within the past 56 days.")`
 
 `r if(nrow(recent_cases) > 0) paste0("Please review the linelists, epicurves, and swimlane plots for each of these facilities in the relevant LPHU section of the report to assess whether any of these facilities represent an outbreak that requires further investigation or escalation.")`
 
