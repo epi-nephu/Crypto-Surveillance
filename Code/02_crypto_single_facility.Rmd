@@ -1,7 +1,7 @@
 ---
 title: 'Cryptosporidiosis - FACILITY NAME'
 author_details: "Alana Little, NEPHU (alana.little@austin.org.au)"
-version_details: "v1.0, 17/09/2025"
+version_details: "v1.1, 19/01/2026"
 output: 
   html_document: 
     code_folding: none
@@ -82,8 +82,8 @@ facility_name <- "FACILITY NAME" # as recorded in Reference_Facility.xlsx
 extract_date <- lubridate::ymd(Sys.Date())
 file_date    <- format(extract_date, format = "%Y%m%d")
 
-# 3-month lookback period for facility-level analyses
-lookback_start <- lubridate::ymd(extract_date - months(3))
+# 56-day lookback period for facility-level analyses
+lookback_start <- lubridate::ymd(extract_date - days(56))
 
 # Start and end dates for epicurves
 epicurve_start <- lookback_start - 14
