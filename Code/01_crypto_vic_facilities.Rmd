@@ -201,6 +201,7 @@ linelist_exposures <- linelist_cases %>%
       facility_clean == "Knox Leisureworks Ymca" ~ "Knox Leisureworks YMCA",
       facility_clean == "Nrma Ballarat Holiday Park" ~ "NRMA Ballarat Holiday Park",
       facility_clean == "Nrma Echuca Holiday Park" ~ "NRMA Echuca Holiday Park",
+      facility_clean == "Splash Aqua Park & Leisure Centre" ~ "Splash Aqua Park and Leisure Centre",
       facility_clean == "Toby Haenen Swim Centre Chelsea Heights" ~ "Toby Haenen Swim Centre",
       facility_clean == "Vermont Views Racf Vermont South" ~ "Vermont Views RACF Vermont South",
       facility_clean == "Watermarc Banyule" ~ "WaterMarc Banyule",
