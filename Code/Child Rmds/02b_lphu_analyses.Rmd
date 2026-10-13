@@ -1,13 +1,13 @@
 
 ## `r facilities[i]`
 
-`r if(!is.na(escalation_dates[i])){paste0("The most recent escalation for this facility was on ", format(escalation_dates[i], format = "%d/%m/%Y"), " (PHESS ID ", escalation_phess[i], "; ", escalation_cases[i], " cases with symptom onset dates between ", format(symptom_first[i], format = "%d/%m/%Y"), " and ", format(symptom_last[i], format = "%d/%m/%Y"), ").")}`
+`r if(!is.na(escalation_dates[i])){paste0("The most recent escalation for this facility was on ", format(escalation_dates[i], format = "%d/%m/%Y"), " (PHESS ID ", escalation_phess[i], "; ", escalation_cases[i], " laboratory confirmed cases with symptom onset dates between ", format(symptom_first[i], format = "%d/%m/%Y"), " and ", format(symptom_last[i], format = "%d/%m/%Y"), ").")}`
 
 `r if(!is.na(hyperchl_dates[i])){paste0("The most recent hyperchlorination at this facility was on ", format(hyperchl_dates[i], format = "%d/%m/%Y"), ".")}`
 
 `r if(!is.na(closure_dates[i])){paste0("This escalation was closed on ", format(closure_dates[i], format = "%d/%m/%Y"), ".")}`
 
-### `r paste0("Cryptosporidiosis cases attending ", facilities[i], " during acquisition and/or infectious period, symptom onset between ", format(lookback_start, format = "%d/%m/%Y"), " and ", format(extract_date, format = "%d/%m/%Y"))`
+### `r paste0("Laboratory confirmed cryptosporidiosis cases attending ", facilities[i], " during acquisition and/or infectious period, symptom onset between ", format(lookback_start, format = "%d/%m/%Y"), " and ", format(extract_date, format = "%d/%m/%Y"))`
 
 ```{r, echo = FALSE, include = TRUE, results = "asis"}
 # Linelist
@@ -65,7 +65,7 @@ linelist <- facility_cases %>%
 linelist
 ```
 
-### `r paste0("Number of cryptosporidiosis cases attending ", facilities[i], " during acquisition period, symptom onset between ", format(lookback_start, format = "%d/%m/%Y"), " and ", format(extract_date, format = "%d/%m/%Y"))`
+### `r paste0("Number of laboratory confirmed cryptosporidiosis cases attending ", facilities[i], " during acquisition period, symptom onset between ", format(lookback_start, format = "%d/%m/%Y"), " and ", format(extract_date, format = "%d/%m/%Y"))`
 
 ```{r, echo = FALSE, include = TRUE, results = "asis", fig.height = 3, fig.width = 8}
 # Epicurve
@@ -82,7 +82,7 @@ epicurve <- facility_cases %>%
 epicurve
 ```
 
-### `r paste0("Cryptosporidiosis cases attending ", facilities[i], " during acquisition and/or infectious period, symptom onset between ", format(lookback_start, format = "%d/%m/%Y"), " and ", format(extract_date, format = "%d/%m/%Y"))`
+### `r paste0("Laboratory confirmed cryptosporidiosis cases attending ", facilities[i], " during acquisition and/or infectious period, symptom onset between ", format(lookback_start, format = "%d/%m/%Y"), " and ", format(extract_date, format = "%d/%m/%Y"))`
 
 ```{r, echo = FALSE, include = TRUE, results = "asis", fig.height = swimlane_heights[i], fig.width = 9}
 # Swimlane plot

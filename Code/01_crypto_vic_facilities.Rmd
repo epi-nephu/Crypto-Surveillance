@@ -473,8 +473,20 @@ dates_attended_after <- linelist_cases %>%
                      names_prefix = "visit_",
                      values_from  = date_attended)
 
-dates_attended_after <- dates_attended_after %>% 
-  tidyr::unite("dates_attended_after", visit_1:ncol(dates_attended_after), sep = ", ", na.rm = TRUE)
+if (nrow(dates_attended_after) > 0) {
+  
+  dates_attended_after <- dates_attended_after %>% 
+    tidyr::unite("dates_attended_after", visit_1:ncol(dates_attended_after), sep = ", ", na.rm = TRUE)
+
+  } else {
+  
+  dates_attended_after <- dates_attended_prior %>%
+    dplyr::select(phess_id,
+                  facility_clean) %>%
+    #
+    dplyr::mutate(dates_attended_after = NA_character_)
+  
+}
 ```
 
 
@@ -497,7 +509,7 @@ linelist_outbreaks <- readxl::read_xlsx(paste0(here::here(), "/Data/NEPHUOutbrea
                                    "202402 Diamond Creek Outdoor Pool (Aquatic Facility)",
                                    "202407 Greater Geelong cluster")) %>%
   # Restrict to outbreaks that are new or in progress
-  dplyr::filter(investigation_status %in% c("New", "In progress")) %>% 
+  dplyr::filter(status == "Open") %>% 
   #
   dplyr::select(phess_id,
                 event_date,
