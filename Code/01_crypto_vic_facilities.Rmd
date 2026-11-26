@@ -204,6 +204,8 @@ linelist_exposures <- linelist_cases %>%
       facility_clean == "Toby Haenen Swim Centre Chelsea Heights" ~ "Toby Haenen Swim Centre",
       facility_clean == "Vermont Views Racf Vermont South" ~ "Vermont Views RACF Vermont South",
       facility_clean == "Watermarc Banyule" ~ "WaterMarc Banyule",
+      facility_clean == "202609 Caulfield Grammar School Camp Yarra Junction" ~ "Caulfield Grammar Yarra Junction",
+      facility_clean == "Jump ! Swim Schools Whittlesea" ~ "Jump! Swim Schools Whittlesea", 
 
       # Remove private residences
       facility_clean == "1333 Murray River Rd Talgarno" ~ NA_character_,
